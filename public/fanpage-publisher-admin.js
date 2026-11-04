@@ -80,18 +80,30 @@ async function refreshCampaignList(){
     select.append(new Option(c.name+" · "+c.status+" · "+c.id.slice(0,8),c.id));
   if([...select.options].some(o=>o.value===selected))select.value=selected;
 }
+async function refreshEvents(){
+  if(!state.campaign)return;
+  const box=$("fpAuditEvents");box.replaceChildren();
+  const data=await api("events?id="+encodeURIComponent(state.campaign.id));
+  if(!data.events.length){box.append(el("p","Chưa có sự kiện."));return;}
+  for(const event of data.events){
+    const info=[new Date(event.created_at).toLocaleString("vi-VN"),
+      event.event_name,event.post_id?" · "+event.post_id.slice(0,8):"",
+      event.details?.status?" · "+event.details.status:""].join(" ");
+    box.append(el("div",info));
+  }
+}
 async function openCampaign(id){
   if(!id)throw Error("Hãy chọn chiến dịch");
   const data=await api("campaign?id="+encodeURIComponent(id));
   state.campaign=data.campaign;state.posts=data.posts;
-  state.offset=0;renderPosts();
+  state.offset=0;renderPosts();await refreshEvents();
   message("Đã mở chiến dịch: "+data.campaign.name+" · "+data.posts.length+" video");
 }
 async function reloadCampaign(){
   if(!state.campaign)return;
   const data=await api("campaign?id="+encodeURIComponent(state.campaign.id));
   state.campaign=data.campaign;state.posts=data.posts;
-  renderPosts();
+  renderPosts();await refreshEvents();
 }
 async function createCampaign(getDraft){
   const draft=getDraft();
