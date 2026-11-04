@@ -60,6 +60,12 @@ create table if not exists public.publisher_posts (
 
 create index if not exists publisher_posts_campaign_time_idx
   on public.publisher_posts(campaign_id,scheduled_at);
+-- Prevent accidental duplicate scheduling of the same Drive file on the same Page,
+-- including across separate campaigns. Cancelled drafts/schedules are exempt.
+create unique index if not exists publisher_no_duplicate_active_file
+  on public.publisher_posts(page_id,drive_file_id)
+  where status <> 'cancelled';
+
 create index if not exists publisher_posts_status_idx
   on public.publisher_posts(status,scheduled_at);
 
