@@ -2,6 +2,7 @@ import {discoverLibrary, FEEDS} from "../src/library.mjs";
 import {discover, playlist, resolve} from "../src/provider.mjs";
 import {createHmac,timingSafeEqual} from "node:crypto";
 import {buildCampaignSchedule} from "../src/reels/campaign-schedule.mjs";
+import {publisherRoute} from "../src/reels/publisher-routes.mjs";
 import {parseDramaBoxInput,parseDramaBoxPublicHTML} from "../src/dramadownloader-page.mjs";
 import {
   DRAMABOX_FEEDS,
@@ -55,7 +56,7 @@ export default async function handler(req,res){
     if(p==="/health")return send(res,200,{ok:true,configured:PASS.length>=12&&SECRET.length>=32});
     if(PASS.length<12||SECRET.length<32)return send(res,503,{error:"Set STUDIO_PASSWORD (12+) and SESSION_SECRET (32+) in Vercel"});
     if(req.headers.origin&&new URL(req.headers.origin).host!==req.headers.host)return send(res,403,{error:"Origin rejected"});
-    if(req.headers["sec-fetch-site"]==="cross-site")return send(res,403,{error:"Cross-site rejected"});
+    if(req.headers["sec-fetch-site"]==="cross-site"&&!(req.method==="GET"&&/^\/publisher\/oauth\/(meta|google)\/callback$/.test(p)))return send(res,403,{error:"Cross-site rejected"});
     if(p==="/login"&&req.method==="POST"){
       const data=await input(req);
       const hashed=s=>createHmac("sha256",SECRET).update(String(s)).digest("hex");
@@ -67,6 +68,23 @@ export default async function handler(req,res){
     if(p==="/logout"&&req.method==="POST")return send(res,200,{ok:true},{"Set-Cookie":"pws=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0"});
     if(!authed(req))return send(res,401,{error:"Cần đăng nhập"});
 
+
+    if(p.startsWith("/publisher/")){
+      try{
+        const cookie=String(req.headers.cookie||"").split(";").map(x=>x.trim())
+          .find(x=>x.startsWith("pws="))||"";
+        const body=req.method==="POST"?await input(req):{};
+        const reply=await publisherRoute(p,req,body,cookie,u.searchParams);
+        if(reply?.redirect){
+          res.writeHead(302,{Location:reply.redirect,"Cache-Control":"no-store"});
+          return res.end();
+        }
+        if(reply)return send(res,reply.code||200,reply.body);
+      }catch(error){
+        console.error("publisher",error.message);
+        return send(res,error.status||400,{error:String(error.message||error).slice(0,250)});
+      }
+    }
 
     // Read only publicly exposed episode metadata, never video auth or private app APIs.
     if(p==="/dramadownloader/inspect"&&req.method==="POST"){
