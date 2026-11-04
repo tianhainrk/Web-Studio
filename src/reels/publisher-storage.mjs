@@ -1,5 +1,5 @@
 import {createCipheriv,createDecipheriv,randomBytes} from "node:crypto";
-const TABLES=new Set(["publisher_credentials","publisher_campaigns","publisher_posts"]);
+const TABLES=new Set(["publisher_credentials","publisher_campaigns","publisher_posts","publisher_events"]);
 export function storageReady(){return Boolean(process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY&&process.env.PUBLISHER_ENCRYPTION_KEY);}
 export function requireStorage(){
   if(!storageReady()){const e=Error("Thiếu cấu hình Supabase/khóa mã hóa");e.status=503;throw e;}
@@ -99,4 +99,21 @@ export async function insertCampaign(data,items){
     await db("publisher_campaigns",{method:"DELETE",query:{id:"eq."+id},prefer:"return=minimal"}).catch(()=>{});
     throw e;
   }
+}
+
+export async function recordEvent(campaignId,postId,name,details={}){
+  const safe={};
+  // Only allow short public diagnostics here; never persist bearer tokens or cookies.
+  for(const key of ["status","stage","meta_video_id","episode_number","error"]){
+    if(details[key]!==undefined)safe[key]=String(details[key]).slice(0,220);
+  }
+  return db("publisher_events",{method:"POST",data:{
+    campaign_id:campaignId,post_id:postId||null,event_name:String(name).slice(0,80),details:safe
+  },prefer:"return=minimal"});
+}
+export async function listEvents(campaignId){
+  return db("publisher_events",{query:{
+    campaign_id:"eq."+campaignId,select:"id,post_id,event_name,details,created_at",
+    order:"created_at.desc",limit:150
+  }});
 }
