@@ -101,7 +101,7 @@ export async function driveList(token,q,fields="nextPageToken,files(id,name,mime
   const files=[];let pageToken;
   do{
     const url=new URL("https://www.googleapis.com/drive/v3/files");
-    url.searchParams.set("q",q);url.searchParams.set("fields",fields);
+    url.searchParams.set("q",q);url.searchParams.set("fields",fields||"nextPageToken,files(id,name,mimeType,size,parents)");
     url.searchParams.set("pageSize","100");url.searchParams.set("spaces","drive");
     if(pageToken)url.searchParams.set("pageToken",pageToken);
     const data=await fetchJSON(url,{headers:{"Authorization":"Bearer "+token}});
