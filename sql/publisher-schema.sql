@@ -84,4 +84,4 @@ revoke all on public.publisher_credentials from anon,authenticated;
 revoke all on public.publisher_campaigns from anon,authenticated;
 revoke all on public.publisher_posts from anon,authenticated;
 revoke all on public.publisher_events from anon,authenticated;
-revoke all on all sequences in schema public from anon,authenticated;
+revoke all on sequence public.publisher_events_id_seq from anon,authenticated;
