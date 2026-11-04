@@ -72,11 +72,8 @@ export async function oauthFinish(provider,code){
     const me=await fetchJSON("https://graph.facebook.com/"+META_VERSION+"/me?fields=id,name&access_token="+encodeURIComponent(long.access_token));
     const userId=String(me.id||"");
     if(!/^\d+$/.test(userId))throw Error("Không xác thực được Meta user");
-    // Persist long-lived user token; Page tokens are imported only after rights verified.
-    await saveCredential({id:"meta-user-"+userId,provider:"meta-user",
-      displayName:String(me.name||"Facebook account").slice(0,100),
-      secret:{access_token:long.access_token,user_id:userId},
-      metadata:{expiresIn:long.expires_in||null,createdAt:new Date().toISOString()}});
+    // Use the user token only transiently to discover authorized Pages.
+    // Store Page credentials only, not an additional long-lived user token.
     const pages=await fetchJSON("https://graph.facebook.com/"+META_VERSION+"/me/accounts?fields=id,name,access_token,tasks&limit=100&access_token="+encodeURIComponent(long.access_token));
     let count=0;
     for(const page of pages.data||[]){
