@@ -102,7 +102,7 @@ export async function reelsRoute(req,res,path){
       const token=await getGoogleAccessToken();
       return json(res,200,{episodes:await driveEpisodes(token,folder)});
     }
-    if(path==="/campaigns"&&method==="GET"){
+    if(path==="/audit"&&method==="GET"){\n      const events=await db("reel_audit?select=id,action,job_id,details,created_at&order=created_at.desc&limit=100");\n      return json(res,200,{events});\n    }\n    if(path==="/campaigns"&&method==="GET"){
       const campaigns=await db("reel_campaigns?select=id,name,page_id,folder_id,start_at,per_day,spacing_minutes,status,created_at&order=created_at.desc&limit=100");
       return json(res,200,{campaigns});
     }
