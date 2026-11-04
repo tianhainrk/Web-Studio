@@ -24,5 +24,13 @@ jobs:
           node --check public/drive-transfer.js
           node --check public/detail.js
           node --check src/library.mjs
+          node --check src/reels/campaign-schedule.mjs
+          node --check src/reels/publisher-storage.mjs
+          node --check src/reels/publisher-ai.mjs
+          node --check src/reels/publisher-oauth.mjs
+          node --check src/reels/publisher-video.mjs
+          node --check src/reels/publisher-routes.mjs
+          node --check public/fanpage-publisher.js
+          node --check public/fanpage-publisher-admin.js
       - name: Unit tests
         run: npm test
