@@ -175,3 +175,19 @@ export async function resetFailedUpload(postId){
   if(!post.upload_session_id||!post.file_size)throw Error("Upload khởi tạo lỗi; cần xác minh với Meta trước khi tạo lại");
   return patchPost(postId,{status:"uploading",last_error:null},{status:"eq.failed"});
 }
+
+export async function cancelScheduledVideo(postId){
+  const post=await getPost(postId);
+  if(!post||post.status!=="scheduled"||!post.meta_video_id)
+    throw Error("Chỉ hủy được video đã lên lịch và chưa xuất bản");
+  const token=await pageToken(post.page_id);
+  const url="https://graph.facebook.com/"+graphVersion+"/"+encodeURIComponent(post.meta_video_id);
+  const res=await fetch(url,{method:"DELETE",headers:{Authorization:"Bearer "+token},
+    redirect:"error",signal:AbortSignal.timeout(30000)});
+  const response=await res.json().catch(()=>({}));
+  if(!res.ok||response.success!==true)
+    throw Error("Meta chưa xác nhận hủy lịch: "+String(response.error?.message||res.status));
+  return patchPost(postId,{
+    status:"cancelled",meta_response:{...response,cancelledAt:new Date().toISOString()},last_error:null
+  },{status:"eq.scheduled"});
+}
