@@ -1,3 +1,4 @@
+import {initFanpagePublisher} from "./fanpage-publisher.js";
 import { openMovieDetail } from "./detail.js";
 import {
   connectDrive,
@@ -71,7 +72,7 @@ function updateDriveConnectionUI() {
 function switchTab(tabName) {
   lastActiveTab = tabName;
   document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("active", x.dataset.tab === tabName));
-  ["catalog", "dramadownloader", "manager", "drive"].forEach(x => {
+  ["catalog", "dramadownloader", "fanpage", "manager", "drive"].forEach(x => {
     const node = $(x);
     if (node) node.classList.toggle("hidden", x !== tabName);
   });
@@ -172,6 +173,7 @@ async function auth() {
   $("headerActions").classList.toggle("hidden", !me.authenticated);
   updateDriveConnectionUI();
   if (me.authenticated) {
+    document.dispatchEvent(new Event("pws:authenticated"));
     startBackgroundTransferPolling();
     if (location.hash === "#dramadownloader") {
       switchTab("dramadownloader");
@@ -1452,4 +1454,5 @@ $("logout").onclick = async () => {
   location.reload();
 };
 
+initFanpagePublisher();
 auth().catch(e => ($("error").textContent = e.message));
