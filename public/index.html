@@ -276,7 +276,51 @@
         </div>
         <div id="fpSummary" class="statline" style="margin-top:14px"></div>
         <div id="fpPreviewList" class="manager-list" style="max-height:380px;overflow:auto"></div>
-        <p class="notice" style="margin-top:14px"><small>Chưa tích hợp Facebook Login hoặc API xuất bản. Chỉ dùng video có quyền đăng lại. Không nhập access token hoặc API key vào các ô cấu hình này.</small></p>
+        <datalist id="fpKnownPages"></datalist>
+        <div class="panel" style="background:#11172a;margin-top:18px">
+          <h3>1. Kết nối tài khoản và dịch vụ AI</h3>
+          <div class="row" style="flex-wrap:wrap;gap:9px">
+            <button class="primary" id="fpConnectMeta">Kết nối Facebook / Fanpage</button>
+            <button class="detail-secondary" id="fpConnectServerDrive">Kết nối Google Drive cho backend</button>
+            <button class="detail-secondary" id="fpRefreshConnections">Kiểm tra kết nối</button>
+          </div>
+          <div class="muted" id="fpConnectionsInfo" style="margin-top:9px">Chưa kiểm tra cấu hình backend.</div>
+          <small class="muted">AI key, Supabase, Google Client Secret và Meta App Secret chỉ cấu hình trên server, không nhập vào trình duyệt.</small>
+        </div>
+        <div class="panel" style="margin-top:14px">
+          <h3>2. Lưu chiến dịch và tạo caption AI</h3>
+          <div class="row" style="gap:9px;flex-wrap:wrap">
+            <button class="primary" id="fpCreateCampaign" disabled>Lưu bản nháp lên database</button>
+            <button class="detail-secondary" id="fpRefreshCampaigns">Tải danh sách chiến dịch</button>
+            <select id="fpCampaignSelect" style="min-width:260px"><option value="">Chọn chiến dịch đã lưu</option></select>
+            <button class="detail-secondary" id="fpOpenCampaign">Mở</button>
+          </div>
+          <div class="row" style="margin-top:10px;gap:9px;flex-wrap:wrap">
+            <button class="detail-secondary" id="fpGenerateCaptions">Tạo caption các bài chưa có</button>
+            <button class="detail-secondary" id="fpApproveVisible">Duyệt những bài đang hiển thị</button>
+            <button class="primary" id="fpApproveCampaign">Xác nhận hoàn tất duyệt chiến dịch</button>
+          </div>
+          <div id="fpCampaignStatus" class="muted" role="status" style="margin-top:10px"></div>
+        </div>
+        <div class="panel" style="margin-top:14px">
+          <h3>3. Upload, lên lịch và theo dõi Facebook</h3>
+          <div class="row" style="gap:9px;flex-wrap:wrap">
+            <button class="primary" id="fpUploadNext">Xử lý video tiếp theo</button>
+            <button class="detail-secondary" id="fpUploadAll">Tiếp tục toàn bộ video được duyệt</button>
+            <button class="detail-secondary" id="fpStopUploads">Dừng sau tác vụ hiện tại</button>
+            <button class="detail-secondary" id="fpReconcile">Đối soát trạng thái Meta</button>
+          </div>
+          <div id="fpUploadStatus" class="muted" role="status" style="margin-top:10px"></div>
+          <div id="fpSavedSummary" class="statline" style="margin-top:12px"></div>
+          <div class="row" style="justify-content:space-between;margin:12px 0;align-items:center">
+            <button id="fpPagePrev" class="detail-secondary">Trang trước</button>
+            <span id="fpPageInfo" class="muted"></span>
+            <button id="fpPageNext" class="detail-secondary">Trang sau</button>
+          </div>
+          <div id="fpSavedPosts" style="display:grid;gap:9px"></div>
+          <p class="notice"><small>Tác vụ upload được lưu bền vững. Không đóng trình duyệt khi còn video đang chuyển; chỉ sau khi Meta đã chấp nhận lịch, Facebook mới có thể tự đăng không cần iPhone hay PC. Việc đăng thực tế chỉ dành cho nội dung có quyền phân phối.</small></p>
+        </div>
+        <p class="notice" style="margin-top:14px"><small>Không chỉnh sửa MP4, không watermark. Giai đoạn đầu cần kiểm thử upload và lên lịch một video 5 phút trên Fanpage của bạn trước khi chạy chiến dịch lớn.</small></p>
       </div>
     </section>
 
