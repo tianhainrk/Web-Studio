@@ -1,3 +1,4 @@
+import {reelsRoute} from "../src/reels-api.mjs";
 import {discoverLibrary, FEEDS} from "../src/library.mjs";
 import {discover, playlist, resolve} from "../src/provider.mjs";
 import {createHmac,timingSafeEqual} from "node:crypto";
@@ -65,6 +66,7 @@ export default async function handler(req,res){
     if(p==="/me")return send(res,200,{authenticated:authed(req),googleClientId:authed(req)?process.env.GOOGLE_CLIENT_ID||"":""});
     if(p==="/logout"&&req.method==="POST")return send(res,200,{ok:true},{"Set-Cookie":"pws=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0"});
     if(!authed(req))return send(res,401,{error:"Cần đăng nhập"});
+    if(p.startsWith("/reels/"))return reelsRoute(req,res,p.slice(6));
 
 
     // Read only publicly exposed episode metadata, never video auth or private app APIs.
