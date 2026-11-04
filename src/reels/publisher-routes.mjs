@@ -63,14 +63,13 @@ async function makeCaption(id){
 async function captionBatch(ids){
   if(!Array.isArray(ids)||ids.length<1||ids.length>5||ids.some(x=>!uuid(x)))
     throw error("Mỗi đợt AI nhận tối đa 5 bài hợp lệ");
-  const items=[];
-  for(const id of ids){
+  // Parallel bounded fan-out keeps this endpoint within short function deadlines.
+  return Promise.all(ids.map(async id=>{
     try{
       const p=await makeCaption(id);
-      items.push({id,ok:true,caption:p.caption,title:p.title,hashtags:p.hashtags});
-    }catch(e){items.push({id,ok:false,error:String(e.message).slice(0,200)});}
-  }
-  return items;
+      return {id,ok:true,caption:p.caption,title:p.title,hashtags:p.hashtags};
+    }catch(e){return {id,ok:false,error:String(e.message).slice(0,200)};}
+  }));
 }
 async function approvePost(id,changes){
   const p=await getPost(id);
