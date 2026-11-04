@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DramaDownloader · Drive Import</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0d17;--panel:#181b2a;--line:#34374f;--text:#f2f0fa;--muted:#a4a5bb;--accent:#9f79ee;--good:#80d5a2;--bad:#ff9ea4}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 system-ui,Arial,sans-serif}main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+header{border-bottom:1px solid var(--line);padding:15px 20px;background:#131522;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+a{color:#c4a7ff}h1{font-size:24px;margin:4px 0}h2{font-size:17px;margin:0 0 12px}p{margin:8px 0 14px;color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:17px;margin-top:15px}
+label{display:block;color:#dad4f1;font-weight:650;margin-bottom:5px}input,textarea,select,button{font:inherit;border-radius:9px;padding:10px 12px;background:#111422;color:var(--text);border:1px solid #4b4c66}
+input,textarea,select{width:100%;max-width:100%}textarea{min-height:145px;font:12px/1.5 ui-monospace,Consolas,monospace;resize:vertical}
+button{cursor:pointer;font-weight:650}button:disabled{opacity:.5;cursor:not-allowed}.primary{background:#744bd1;border-color:#744bd1}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.buttons{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}.hint{font-size:12px;color:var(--muted)}
+.badge{border:1px solid var(--line);background:#24263b;border-radius:99px;padding:4px 9px;font-size:12px;color:#d3cdef}
+.results{max-height:440px;overflow:auto;border:1px solid var(--line);border-radius:9px;margin-top:12px}
+.ep{display:grid;grid-template-columns:24px 68px minmax(130px,1fr) auto;gap:10px;align-items:center;border-bottom:1px solid var(--line);padding:10px}
+.ep:last-child{border:0}.ep>span{overflow-wrap:anywhere}.state{font-size:12px;color:var(--muted)}.locked{color:var(--bad)}.ready{color:var(--good)}.notice{color:#e1c598;background:#332b1f;border:1px solid #665238;padding:12px;border-radius:10px}
+#log{min-height:95px;max-height:300px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.55 ui-monospace,monospace;background:#0c1020;padding:12px;border-radius:9px;border:1px solid var(--line)}
+details{border-top:1px solid var(--line);padding-top:11px;margin-top:13px}summary{cursor:pointer;color:#cfb8ff;font-weight:650}
+@media(max-width:660px){.grid{grid-template-columns:1fr}.ep{grid-template-columns:24px 50px minmax(95px,1fr);gap:7px}.ep .state{grid-column:2/-1}}
+</style>
+</head><body>
+<header><strong>PINE<span style="color:#b18bff">DRAMA</span> · DramaDownloader Import</strong><a href="/">Quay lại Studio</a></header>
+<main>
+<h1>Nhập tập phim vào Google Drive</h1>
+<p>Tự động đọc trang phim DramaBox công khai hoặc nhận JSON <code>Series/Episode</code> tương thích với <a href="https://github.com/K07VN/DramaDownloader" target="_blank" rel="noopener noreferrer">K07VN/DramaDownloader</a>. Chọn tập có video MP4 được cấp phép rồi tải vào Drive. Chế độ Python chạy qua Vercel, không tự mở khóa phim và không chuyển video HLS thành MP4.</p>
+<div id="authInfo" class="notice">Đang kiểm tra phiên Studio và Google Drive…</div>
+<section class="panel" id="autoImportPanel">
+<h2>1 · Lấy danh sách tập từ DramaDownloader Python</h2>
+<p>Dán link phim hoặc Book ID DramaBox để chạy trực tiếp extractor Python của DramaDownloader. Bạn cũng có thể duyệt trực tiếp kho phim DramaBox tại <a href="/#dramadownloader">Tab DramaDownloader → Drive trên trang chủ</a>.</p>
+<div class="row" style="display:flex;gap:9px;flex-wrap:wrap">
+  <input id="autoTarget" style="flex:1;min-width:190px" autocomplete="off" placeholder="https://www.dramaboxdb.com/movie/42000001234/drama hoặc Book ID">
+  <button id="pythonInspect" class="primary">Lấy bằng DramaDownloader Python</button>
+</div>
+<div id="autoStatus" class="hint" role="status" style="margin-top:10px">Chưa kiểm tra nguồn.</div>
+</section>
+<section class="panel">
+<h2>2 · Nhập JSON thủ công (dự phòng)</h2>
+<div class="grid">
+<div><label for="platform">Nền tảng</label><select id="platform">
+<option value="dramabox">DramaBox</option><option value="goodshort">GoodShort</option>
+<option value="shortmax">ShortMax</option><option value="netshort">NetShort</option>
+<option value="freereels">FreeReels</option><option value="kisskh">KissKH</option>
+<option value="hongguo">Hongguo</option><option value="dramawave">DramaWave</option>
+<option value="raptdrama">RaptDrama</option><option value="flextv">FlexTV</option>
+<option value="stardusttv">StardustTV</option></select></div>
+<div><label for="seriesId">Series ID</label><input id="seriesId" placeholder="Ví dụ 42000001234" autocomplete="off"></div>
+<div><label for="seriesTitle">Tên phim</label><input id="seriesTitle" placeholder="Tên bộ phim" autocomplete="off"></div>
+</div>
+<div style="margin-top:12px"><label for="manifestFile">Tải JSON Series từ máy</label><input id="manifestFile" type="file" accept=".json,application/json"></div>
+<div style="margin-top:12px"><label for="manifest">Hoặc dán JSON</label>
+<textarea id="manifest" spellcheck="false" placeholder='{"platform":"dramabox","series_id":"dramabox:42000001234","name":"Tên phim","episodes":[{"num":1,"title":"Tập 1","direct_url":"https://cdn.example.com/video.mp4","locked":false}]}'></textarea></div>
+<div class="buttons"><button id="parse" class="primary">Đọc danh sách tập</button><button id="clear">Xóa nhập liệu</button></div>
+<p class="hint">Đọc JSON xuất từ công cụ Python; cũng chấp nhận mảng <code>episodes</code> có trường <code>num</code>, <code>direct_url</code>, <code>locked</code>. Không nhập cookie hoặc token xem phim.</p>
+</section>
+<section class="panel">
+<h2>3 · Chọn tập và nguồn MP4</h2>
+<div class="buttons">
+<button id="all">Chọn tập có URL</button><button id="none">Bỏ chọn</button><button id="localSelect">Chọn tập thiếu URL</button>
+<span class="badge" id="counts">Chưa có danh sách</span>
+</div>
+<div class="results" id="episodes"><p style="padding:12px">Chưa nhập dữ liệu.</p></div>
+<details><summary>Đính kèm MP4 từ thiết bị cho tập đã chọn</summary>
+<p class="hint">Chọn nhiều file có tên <code>EP001.mp4</code>, <code>EP002.mp4</code>... Các file này được đối chiếu theo số tập.</p>
+<input id="localFiles" type="file" multiple accept=".mp4,video/mp4">
+<div class="hint" id="filesInfo">Chưa chọn file.</div>
+</details>
+</section>
+<section class="panel">
+<h2>4 · Lưu vào Google Drive</h2>
+<p class="hint">Thư mục đích đồng bộ với Manager: <code>PineDrama-Library/&lt;series_id&gt;/</code>. Tự bỏ qua file cùng tên, cùng kích thước; không ghi đè. Metadata sẽ nằm trong <code>movie.json</code>.</p>
+<div class="buttons"><button id="upload" class="primary" disabled>Tải các tập đã chọn lên Drive</button><button id="stop" disabled>Dừng sau tập hiện tại</button><span id="progress" class="badge">Chưa tải</span></div>
+<pre id="log">Sẵn sàng kiểm tra dữ liệu.</pre>
+</section>
+</main>
+<script type="module" src="/dramadownloader-import.js"></script>
+</body></html>

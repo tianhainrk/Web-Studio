@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b0d17"><title>PineDrama Web Studio</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b0d17;color:#f2f0fa;font:14px system-ui,sans-serif}header{border-bottom:1px solid #292941;background:#121421;padding:14px 5%;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h1{font-size:20px;margin:0;letter-spacing:-.6px}h1 b{color:#bd96ff}h2{font-size:20px;margin-top:0}main{max-width:1200px;margin:auto;padding:20px}button,input,select,textarea{font:inherit;padding:10px 12px;border-radius:10px;border:1px solid #393a51;background:#1c2031;color:inherit}button{cursor:pointer;transition:border-color .15s,background .15s}button:hover:not(:disabled){border-color:#ba9bfc}button:disabled{opacity:.5;cursor:not-allowed}.primary{background:#7547ce;border-color:#7547ce;color:white;font-weight:650}.primary:hover:not(:disabled){background:#8557de}.danger{background:#4a2030;border-color:#7c354d;color:#ffb8c6}.hidden{display:none!important}.tabs{display:flex;gap:8px;margin-bottom:20px;overflow-x:auto}.tabs button.active{background:#7547ce;border-color:#9b72ef;font-weight:650}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.toolbar input{flex:1;min-width:180px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:15px;margin-top:20px}.movie{text-align:left;padding:0;overflow:hidden;background:#181a2a;border-radius:14px}.cover{height:225px;background:linear-gradient(145deg,#3a2256,#8667af);display:grid;place-items:center;font-size:40px}.cover img{height:100%;width:100%;object-fit:cover}.movie .info{padding:11px}.movie strong{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-height:40px;font-size:13px}small,.muted{color:#a4a5bb}.panel{border:1px solid #31334a;border-radius:14px;background:#181b2a;padding:18px;margin:16px 0}.episodes{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:7px;margin:15px 0}.episodes button:disabled{opacity:.35}.episodes button.on-drive{border-color:#34a853;background:#182e24;color:#81e69b;font-weight:600}.player{display:block;background:black;width:100%;max-width:320px;aspect-ratio:9/16;margin:18px auto;border-radius:12px}.statline{margin:16px 0;color:#bda7e0;font-size:13px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{max-width:100%}.notice{color:#c0b1d7;line-height:1.6}.work{border-bottom:1px solid #34364a;padding:12px 0}.work:last-child{border:0}code{background:#121422;padding:2px 6px;border-radius:6px;color:#d6bfff;overflow-wrap:anywhere}#error{color:#ffb1ba;white-space:pre-wrap}#message{color:#bfa4ff;white-space:pre-wrap;margin:8px 0}
+.header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.drive-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:99px;font-size:12px;font-weight:600;border:1px solid #383b54;background:#191c2c;color:#b8b9d0}
+.drive-pill.connected{border-color:#2e7d47;background:#15291e;color:#7be398}
+.btn-sm{padding:7px 11px;font-size:12px;border-radius:8px}
+.drive-link{color:#b693ff;text-decoration:none;font-weight:600}.drive-link:hover{text-decoration:underline}
+
+/* Compact navigation, rank order and movie detail */
+.tabs{gap:6px;scrollbar-width:none}.tabs button{white-space:nowrap;font-size:13px;padding:10px 14px;min-width:max-content}
+.toolbar select{max-width:190px}
+.movie .info small{display:block;margin-top:6px;line-height:1.5}
+.grid.ranked{display:flex;flex-direction:column;gap:10px}
+.grid.ranked .movie{width:100%;display:flex;align-items:center;border:1px solid #292e44;background:#171927}
+.grid.ranked .rank-index{width:46px;flex-shrink:0;text-align:center;font-weight:900;font-size:23px;color:#a7aabd}
+.grid.ranked .movie:nth-child(1) .rank-index{color:#f14474}
+.grid.ranked .movie:nth-child(2) .rank-index{color:#f7a130}
+.grid.ranked .movie:nth-child(3) .rank-index{color:#f2c432}
+.grid.ranked .cover{height:133px;width:91px;flex-shrink:0;border-radius:8px;overflow:hidden;margin:7px 0}
+.grid.ranked .movie .info{flex:1;min-width:0;padding:9px 12px}
+.grid.ranked .movie strong{min-height:auto;font-size:15px;line-height:1.4}
+#detail{max-width:950px;margin:12px auto}.detail-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.detail-back,.detail-secondary{background:#22243a;border:1px solid #343953}
+.detail-layout{display:grid;grid-template-columns:190px minmax(0,1fr);align-items:start;gap:22px}
+.detail-poster{aspect-ratio:2/3;display:grid;place-items:center;background:linear-gradient(140deg,#52386f,#9a638e);border-radius:14px;overflow:hidden;font-size:40px}
+.detail-poster img{display:block;width:100%;height:100%;object-fit:cover}
+.detail-info{min-width:0}.detail-kicker{color:#b693ff;font-size:12px;text-transform:uppercase;font-weight:700;letter-spacing:.6px}
+.detail-title{font-size:23px;line-height:1.3;margin:10px 0}.detail-tag{display:inline-flex;padding:5px 11px;border-radius:99px;background:#423462;color:#d6c4ff;font-weight:700;margin:4px 0}
+.detail-views{color:#ff7796;font-weight:700;margin:8px 0}.detail-id,.detail-muted{font-size:12px;color:#9b9cb3;line-height:1.5;overflow-wrap:anywhere;margin:6px 0}
+.detail-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.detail-actions button{font-size:12px}
+.detail-status{color:#d0b0ff;font-size:13px;line-height:1.5}.detail-playback{border-top:1px solid #31354b;padding-top:16px;margin-top:20px}
+.detail-playback h3{font-size:16px}
+.detail-transfer{margin-top:18px;border:1px solid #483b66;background:#1e1b2e;border-radius:14px;padding:16px}
+.detail-transfer h3{margin-top:0;font-size:16px;color:#e4d6ff}
+.drive-folder-banner{padding:10px 12px;border-radius:10px;background:#151624;border:1px solid #2e324a;font-size:13px;color:#c7c8dc;margin-bottom:14px}
+.transfer-modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin:12px 0}
+.mode-option{display:flex;align-items:center;gap:8px;padding:11px 12px;border-radius:10px;border:1px solid #353852;background:#171929;cursor:pointer;font-weight:500}
+.mode-option.active{border-color:#8c5cf2;background:#261e3d;color:#f3ecff}
+.mode-option input{width:auto;margin:0;accent-color:#8754ed}
+.range-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px;border-radius:10px;background:#151726;border:1px solid #323650;margin:10px 0}
+.range-field{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.range-input{width:90px;text-align:center;font-weight:700}
+.rights-label{display:flex;align-items:start;gap:8px;margin:12px 0;font-size:12px;line-height:1.5;color:#bcbdd2}
+.rights-label input{margin:3px 0 0;width:auto;accent-color:#8754ed}
+.detail-progress{width:100%;height:10px;accent-color:#8852e0;margin-top:8px}
+.episodes button.active{background:#7546d5;border-color:#ae86f0;color:white}
+
+/* Drive Manager styles */
+.manager-list{display:flex;flex-direction:column;gap:14px;margin-top:16px}
+.manager-card{border:1px solid #2f334d;background:#161929;border-radius:14px;padding:16px;display:grid;grid-template-columns:96px minmax(0,1fr);gap:16px;align-items:start}
+.manager-poster{width:96px;height:140px;border-radius:10px;overflow:hidden;background:linear-gradient(140deg,#442b61,#835386);display:grid;place-items:center;font-size:30px;flex-shrink:0}
+.manager-poster img{width:100%;height:100%;object-fit:cover}
+.manager-body{min-width:0}
+.manager-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.manager-title{font-size:17px;font-weight:700;margin:0 0 4px;line-height:1.35}
+.badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:700}
+.badge.complete{background:#183826;color:#7ce89b;border:1px solid #2d6b45}
+.badge.updating{background:#382b18;color:#ffd07b;border:1px solid #755828}
+.badge.empty{background:#282a3e;color:#b2b4cb;border:1px solid #3f425e}
+.manager-meta{font-size:12px;color:#a5a7be;margin:6px 0;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.manager-bar{width:100%;height:8px;background:#25283c;border-radius:99px;overflow:hidden;margin:8px 0}
+.manager-bar-fill{height:100%;background:linear-gradient(90deg,#7547ce,#34a853);transition:width .25s}
+.manager-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid #272b40}
+.manager-range-box{display:inline-flex;align-items:center;gap:6px;background:#121422;padding:5px 9px;border-radius:10px;border:1px solid #31354f;font-size:12px}
+.manager-range-box input{width:64px;padding:5px 6px;text-align:center;font-size:12px;border-radius:6px}
+.manager-files{margin-top:12px;padding:10px;background:#111320;border:1px solid #282b42;border-radius:10px;max-height:220px;overflow-y:auto;font-size:12px}
+.manager-file-row{display:flex;justify-content:space-between;align-items:center;padding:5px 4px;border-bottom:1px solid #1f2236}
+.manager-file-row:last-child{border:0}
+.subtabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.subtabs button{padding:8px 13px;font-size:13px;border-radius:99px;background:#181b2c;border:1px solid #343854;color:#cacbe0}
+.subtabs button.active{background:#7547ce;border-color:#9e75f0;color:#fff;font-weight:650}
+.cat-chips{display:flex;gap:7px;flex-wrap:wrap;max-height:210px;overflow-y:auto;padding:4px 0}
+.cat-chips button{padding:6px 11px;font-size:12px;border-radius:99px;background:#151828;border:1px solid #30344e;color:#c2c4da}
+.cat-chips button.active{background:#663bbd;border-color:#9b72ef;color:#fff;font-weight:650}
+.bg-transfer-banner{border:1px solid #483b6a;background:linear-gradient(90deg,#1d1930,#182628);border-radius:12px;padding:11px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.source-tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;background:#2b2244;color:#d2b8ff;border:1px solid #523d82}
+.source-tag.dramabox{background:#3a1d36;color:#ffadd8;border-color:#7d396f}
+
+@media(max-width:600px){
+  main{padding:12px}header{padding:12px}h1{font-size:17px}
+  .tabs{gap:4px;margin-bottom:14px}.tabs button{padding:9px 11px;font-size:12px}
+  .toolbar #search,.toolbar #managerSearch{order:3;flex-basis:100%}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.cover{height:185px}
+  .grid.ranked .rank-index{width:32px;font-size:20px}
+  .grid.ranked .cover{width:78px;height:114px}
+  .grid.ranked .movie strong{font-size:14px}
+  .detail-layout{grid-template-columns:98px minmax(0,1fr);gap:12px}
+  .detail-title{font-size:18px;margin:7px 0}.detail-info .notice{font-size:12px;line-height:1.45}
+  .detail-actions button{width:100%;padding:9px;font-size:12px}
+  #detail{padding:12px}
+  .manager-card{grid-template-columns:1fr}
+  .manager-poster{width:76px;height:110px}
+}
+</style><script src="https://accounts.google.com/gsi/client" async defer></script></head>
+<body>
+<header>
+  <h1><b>PINE</b>DRAMA <span style="font-weight:400;color:#a3a3b9">STUDIO</span></h1>
+  <div id="headerActions" class="header-right hidden">
+    <span id="driveHeaderBadge" class="drive-pill">Drive: Chưa kết nối</span>
+    <button id="headerConnectDrive" class="btn-sm primary">Liên kết Google Drive</button>
+    <button id="logout" class="btn-sm">Đăng xuất</button>
+  </div>
+</header>
+<main>
+  <section id="loginView">
+    <div class="panel" style="max-width:400px;margin:40px auto">
+      <h2>Đăng nhập Studio</h2>
+      <form id="loginForm" class="row">
+        <input id="password" type="password" autocomplete="current-password" placeholder="Mật khẩu quản trị" required>
+        <button class="primary">Đăng nhập</button>
+      </form>
+      <p id="error"></p>
+    </div>
+  </section>
+
+  <section id="appView" class="hidden">
+    <nav class="tabs">
+      <button class="active" data-tab="catalog">Kho phim (PineDrama)</button>
+      <button data-tab="dramadownloader">DramaDownloader → Drive</button>
+      <button data-tab="manager">Manager (Drive)</button>
+      <button data-tab="drive">Google Drive</button>
+    </nav>
+    <div id="bgTransferBanner" class="bg-transfer-banner hidden"></div>
+    <p id="message"></p>
+
+    <section id="catalog">
+      <div class="toolbar">
+        <select id="feed">
+          <option value="home">Đề xuất</option>
+          <option value="hot">Top phim hot · Việt Nam</option>
+          <option value="ranking">BXH Mới nhất · Việt Nam</option>
+          <option value="new">Tác phẩm mới · Việt Nam (7 ngày)</option>
+          <option value="categories">Thể loại</option>
+        </select>
+        <input id="search" type="search" placeholder="Tìm trong danh sách đã tải...">
+        <select id="count">
+          <option value="14">Nguồn 14</option>
+          <option value="24">Nguồn 24</option>
+          <option value="50">Nguồn 50</option>
+        </select>
+        <button class="primary" id="refresh">Làm mới</button>
+      </div>
+      <div id="categoryFilters" class="panel hidden"></div>
+      <p class="notice" style="margin:8px 0 0"><small>Chọn một bộ phim để xem hoặc tải video trực tiếp lên Google Drive (tự động tạo thư mục theo ID phim, hỗ trợ tải toàn bộ hoặc tải theo khoảng tập).</small></p>
+      <div class="statline" id="catalogStatus">Sẵn sàng</div>
+      <div class="grid" id="movies"></div>
+      <div class="row" style="justify-content:center;margin:24px 0">
+        <button id="loadMore" class="primary hidden">Tải thêm phim</button>
+      </div>
+    </section>
+
+    <section id="dramadownloader" class="hidden">
+      <div class="toolbar">
+        <select id="ddFeed">
+          <option value="hot">🔥 Phim Hot (Đề xuất)</option>
+          <option value="new">🆕 Phim Mới (Đã ra mắt & Sắp ra mắt)</option>
+          <option value="ranking">🏆 Bảng Xếp Hạng (Hot · Tìm kiếm · Mới)</option>
+          <option value="categories">📚 Danh Mục Thể Loại (App DramaBox)</option>
+        </select>
+        <input id="ddSearch" type="search" placeholder="Tìm tên phim DramaBox (ví dụ: (Lồng tiếng) Nhà tù tử thần)...">
+        <button class="primary" id="ddSearchBtn">Tìm phim</button>
+        <button id="ddRefresh" class="detail-secondary">Làm mới</button>
+      </div>
+
+      <div class="panel" style="padding:14px 16px;margin:12px 0;background:#16192b;border-color:#4b3b72">
+        <div class="row" style="justify-content:space-between;margin-bottom:8px">
+          <strong style="font-size:13px;color:#e3d4ff">🔗 Nhập Link Phim hoặc Book ID Dự Phòng (Mở & Tải trực tiếp lên Google Drive)</strong>
+          <small class="muted">Dự phòng khi tìm tên phim chưa thấy: dán link DramaBox, link chia sẻ App, hoặc Book ID</small>
+        </div>
+        <div class="row">
+          <input id="ddDirectLinkInput" type="text" placeholder="Dán link phim DramaBox (ví dụ: https://www.dramaboxdb.com/movie/42000032308/... hoặc Book ID 42000032308)..." style="flex:1;min-width:240px">
+          <button id="ddDirectLinkOpenBtn" class="primary">Mở phim & Tải lên Drive</button>
+          <button id="ddDirectLinkPythonBtn" class="detail-secondary">Lấy qua Python Extractor</button>
+        </div>
+        <div id="ddDirectLinkStatus" class="muted" style="font-size:12px;margin-top:6px"></div>
+      </div>
+
+      <div id="ddSubFilters" class="subtabs hidden"></div>
+      <div id="ddCategoryPanel" class="panel hidden" style="padding:14px;margin:12px 0">
+        <div class="row" style="justify-content:space-between;margin-bottom:8px">
+          <strong style="font-size:13px;color:#d6c4ff">Danh mục thể loại DramaBox (Tiếng Việt)</strong>
+          <small id="ddCategoryActiveLabel">Tất cả thể loại</small>
+        </div>
+        <div id="ddCategoryChips" class="cat-chips"></div>
+      </div>
+
+      <p class="notice" style="margin:8px 0 0">
+        <small>Chọn trực tiếp một bộ phim DramaBox bên dưới để xem trực tuyến tất cả các tập hoặc tải ngầm toàn bộ MP4 lên Google Drive (đồng bộ trực tiếp vào <code>PineDrama-Library/&lt;Book_ID&gt;</code> cho Manager).</small>
+      </p>
+
+      <div class="statline" id="ddStatus">Đang chuẩn bị kho phim DramaBox...</div>
+      <div class="grid" id="ddMovies"></div>
+      <div class="row" style="justify-content:center;margin:24px 0">
+        <button id="ddLoadMore" class="primary hidden">Tải thêm phim DramaBox</button>
+      </div>
+
+      <details class="panel" style="margin-top:24px">
+        <summary style="cursor:pointer;font-weight:700;color:#d2b8ff">⚙️ Công cụ nâng cao: DramaDownloader Python Extractor & Nhập JSON / MP4 từ máy</summary>
+        <div style="margin-top:14px">
+          <p class="muted" style="margin-top:0">Nhập Book ID hoặc URL phim để chạy extractor Python của DramaDownloader hoặc dán JSON/MP4 cục bộ và tải lên thư mục đồng bộ <code>PineDrama-Library/&lt;Book_ID&gt;</code>.</p>
+          <div class="row" style="margin-bottom:12px">
+            <input id="ddPythonTarget" type="text" placeholder="Nhập Book ID (ví dụ: 42000009080) hoặc link phim DramaBox..." style="flex:1;min-width:220px">
+            <button id="ddPythonInspectBtn" class="primary">Lấy bằng DramaDownloader Python</button>
+            <button id="ddOpenDirectByIdBtn" class="detail-secondary">Mở trong trình phát & tải ngầm</button>
+          </div>
+          <div id="ddPythonStatus" class="muted" style="font-size:12px;margin-bottom:10px"></div>
+          <div class="row" style="gap:10px;align-items:flex-start">
+            <textarea id="ddManifestJson" rows="4" placeholder='Hoặc dán JSON Series/Episode từ công cụ Python: {"platform":"dramabox","series_id":"42000009080","name":"Tên phim","episodes":[...]}' style="flex:1;min-width:260px;font:12px ui-monospace,monospace"></textarea>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <input id="ddManifestFile" type="file" accept=".json,application/json">
+              <button id="ddParseJsonBtn" class="primary">Mở JSON trong Trình tải Drive</button>
+            </div>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section id="detail" class="panel hidden"></section>
+
+    <section id="manager" class="hidden">
+      <div class="panel">
+        <div class="row" style="justify-content:space-between;margin-bottom:10px">
+          <div>
+            <h2 style="margin-bottom:4px">Drive Movie Manager (PineDrama & DramaBox)</h2>
+            <p class="muted" style="margin:0">Quản lý và đồng bộ dữ liệu phim trên Google Drive theo cấu trúc chuẩn <code>PineDrama-Library/&lt;ID_Phim&gt;</code></p>
+          </div>
+          <div class="row">
+            <button id="managerConnectBtn" class="primary">Kết nối Google Drive</button>
+            <button id="managerSyncMetaBtn" class="detail-secondary">Đồng bộ Metadata</button>
+            <button id="managerRefreshBtn" class="primary">Làm mới danh sách Drive</button>
+          </div>
+        </div>
+
+        <div class="toolbar" style="margin-top:14px">
+          <input id="managerSearch" type="search" placeholder="Tìm phim trên Drive theo tên phim hoặc ID thư mục...">
+          <select id="managerFilter">
+            <option value="all">Tất cả phim trên Drive</option>
+            <option value="updating">Đang cập nhật / Chưa đủ tập</option>
+            <option value="complete">Đã tải đủ bộ</option>
+            <option value="pinedrama">Nguồn: PineDrama</option>
+            <option value="dramabox">Nguồn: DramaBox</option>
+          </select>
+        </div>
+
+        <div class="row" style="margin-top:12px;padding-top:12px;border-top:1px solid #2b2e44">
+          <input id="managerQuickId" type="text" placeholder="Nhập ID phim (PineDrama Collection ID hoặc DramaBox Book ID) để mở / tải lên Drive..." style="flex:1;min-width:220px">
+          <button id="managerOpenById" class="detail-secondary">Mở phim theo ID</button>
+        </div>
+
+        <div class="statline" id="managerStatus">Hãy kết nối Google Drive để tải danh sách thư mục phim.</div>
+        <div id="managerList" class="manager-list"></div>
+      </div>
+    </section>
+
+    <section id="drive" class="hidden">
+      <div class="panel">
+        <h2>Liên kết Google Drive</h2>
+        <p class="notice">
+          Hệ thống tự động tạo thư mục gốc <code>PineDrama-Library</code> trên Google Drive và phân chia từng bộ phim vào thư mục riêng theo đúng <b>Collection ID</b> (ví dụ: <code>PineDrama-Library/7698688530096116744/EP001.mp4</code>) kèm tệp <code>movie.json</code> để dễ kiểm soát và cập nhật tập mới.
+        </p>
+
+        <div class="row" style="margin:14px 0">
+          <button class="primary" id="googleConnect">Kết nối Google Drive (OAuth)</button>
+          <button id="googleDisconnect" class="detail-secondary hidden">Ngắt kết nối</button>
+          <span id="driveState" class="muted">Chưa kết nối</span>
+        </div>
+
+        <div class="panel" style="background:#141624;margin-top:16px">
+          <h3 style="margin-top:0;font-size:15px">Cấu hình Google OAuth / Token</h3>
+          <p class="muted" style="font-size:12px;margin-top:0">Nếu máy chủ chưa cấu hình biến môi trường <code>GOOGLE_CLIENT_ID</code>, bạn có thể nhập Client ID (Web application) hoặc dán trực tiếp OAuth Access Token (scope <code>drive.file</code> / <code>drive</code>) bên dưới:</p>
+          <div class="row" style="margin-bottom:10px">
+            <input id="customClientId" type="text" placeholder="Google OAuth Client ID (ví dụ: xxx.apps.googleusercontent.com)" style="flex:1;min-width:240px">
+            <button id="saveClientId" class="detail-secondary">Lưu Client ID</button>
+          </div>
+          <div class="row">
+            <input id="manualAccessToken" type="password" placeholder="Hoặc dán trực tiếp Google Drive Access Token (ya29...)" style="flex:1;min-width:240px">
+            <button id="applyAccessToken" class="detail-secondary">Liên kết bằng Token</button>
+          </div>
+        </div>
+
+        <div class="panel" style="background:#141624;margin-top:16px">
+          <h3 style="margin-top:0;font-size:15px">Tải tệp video lẻ từ thiết bị lên Drive</h3>
+          <div class="row">
+            <input id="driveFiles" type="file" accept="video/mp4,video/quicktime" multiple>
+            <button class="primary" id="driveUpload">Tải lên thư mục gốc</button>
+          </div>
+          <p id="uploadStatus" class="muted"></p>
+        </div>
+      </div>
+    </section>
+  </section>
+</main>
+<script type="module" src="/app.js"></script>
+</body></html>

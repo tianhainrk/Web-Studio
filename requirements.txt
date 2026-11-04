@@ -1,0 +1,5 @@
+# Optional DramaDownloader extractor, pinned to a reviewed Git commit.
+# Upstream licensing and content rights must be confirmed before redistribution.
+drama-downloader @ git+https://github.com/K07VN/DramaDownloader.git@daefecae06ff18be5e10e06ec4c33acea8c096d5
+requests>=2.28.0,<3
+cryptography>=41.0.0,<47
