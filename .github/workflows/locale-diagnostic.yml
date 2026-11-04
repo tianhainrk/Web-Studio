@@ -1,0 +1,19 @@
+name: Diagnose PineDrama locale profiles
+on:
+  push:
+    paths:
+      - scripts/compare-locale.mjs
+      - .github/workflows/locale-diagnostic.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/compare-locale.mjs

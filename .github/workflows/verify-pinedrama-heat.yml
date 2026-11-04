@@ -1,0 +1,19 @@
+name: Verify PineDrama original ranking heat_score
+on:
+  push:
+    paths:
+      - scripts/verify-pinedrama-heat.mjs
+      - .github/workflows/verify-pinedrama-heat.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-pinedrama-heat.mjs

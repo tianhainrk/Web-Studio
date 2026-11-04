@@ -1,0 +1,20 @@
+name: Compare PineDrama native ranking feeds
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/compare-ranking.mjs
+      - .github/workflows/ranking-diagnostic.yml
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Native public catalog diagnostic (no video, no cookies)
+        run: node scripts/compare-ranking.mjs

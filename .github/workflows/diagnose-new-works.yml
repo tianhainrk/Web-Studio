@@ -1,0 +1,20 @@
+name: Diagnose original PineDrama New Works
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/diagnose-new-works.mjs
+      - .github/workflows/diagnose-new-works.yml
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Read-only new works region and pagination diagnosis
+        run: node scripts/diagnose-new-works.mjs

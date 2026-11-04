@@ -1,0 +1,28 @@
+name: Verify PineDrama Web Studio
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax check
+        run: |
+          node --check src/provider.mjs
+          node --check src/dev-server.mjs
+          node --check api/index.mjs
+          node --check public/app.js
+          node --check public/drive.js
+          node --check public/drive-transfer.js
+          node --check public/detail.js
+          node --check src/library.mjs
+      - name: Unit tests
+        run: npm test
