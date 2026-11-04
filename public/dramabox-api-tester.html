@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>DramaBox API Tester · AnPinime Research</title>
+<style>
+:root{--bg:#0b1020;--surface:#141b31;--surface2:#1d2741;--border:#33405c;--text:#eff4ff;--muted:#a6b5ce;--primary:#7e9bff;--good:#5dd6ad;--bad:#ff8c9e}
+*{box-sizing:border-box}body{margin:0;font:15px/1.55 system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:radial-gradient(circle at 10% 0%,#1c2950 0,transparent 30%),var(--bg);color:var(--text)}main{max-width:1120px;margin:0 auto;padding:26px 18px 55px}.eyebrow{text-transform:uppercase;letter-spacing:.13em;font-weight:750;font-size:11px;color:#b0beff}h1{font-size:clamp(24px,4vw,36px);line-height:1.2;margin:8px 0}h2{font-size:17px;margin:0 0 12px}.lede{color:var(--muted);max-width:900px}.alert{border:1px solid #76603f;background:#382d20;border-radius:12px;padding:12px 15px;color:#f9dba6;margin:18px 0 22px}.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px}.panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;min-width:0}.field{margin:0 0 13px}label{display:block;font-size:13px;font-weight:650;color:#d9e4fb;margin-bottom:6px}select,input,textarea{display:block;width:100%;padding:11px 12px;background:#0d1426;border:1px solid #445271;border-radius:9px;color:var(--text);font:inherit;outline:none}select:focus,input:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 2px #7e9bff33}textarea{resize:vertical;min-height:230px;line-height:1.48;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.hint{font-size:12px;color:var(--muted);margin-top:6px}.path{font:12px/1.5 ui-monospace,Consolas,monospace;overflow-wrap:anywhere;color:#b1c7ff;background:var(--surface2);padding:11px;border-radius:9px;margin:5px 0 14px}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:15px}button{border:1px solid var(--border);background:#283653;color:var(--text);font:inherit;font-weight:650;border-radius:10px;padding:10px 14px;cursor:pointer}button.primary{background:var(--primary);color:#0d152a;border-color:transparent}button:hover{filter:brightness(1.11)}button:disabled{opacity:.45;cursor:wait}.meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:11px}.pill{padding:5px 9px;background:var(--surface2);border:1px solid var(--border);border-radius:99px;font:12px ui-monospace,Consolas,monospace}.output{width:100%;min-height:300px;max-height:650px;overflow:auto;margin:0;white-space:pre-wrap;overflow-wrap:anywhere;background:#090e1b;border:1px solid var(--border);border-radius:10px;padding:14px;font:12px/1.65 ui-monospace,Consolas,monospace;color:#d8e6ff}.badge{font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:99px;padding:4px 8px}.small{font-size:12px;color:var(--muted)}.footer{margin-top:18px;color:var(--muted);font-size:12px;line-height:1.75}.error{color:var(--bad)}.ok{color:var(--good)}details{border-top:1px solid var(--border);padding-top:12px;margin-top:13px}summary{cursor:pointer;font-weight:650;color:#c7d6ff}@media(max-width:780px){.grid{grid-template-columns:1fr}.two{grid-template-columns:1fr}main{padding:16px 12px 40px}.panel{padding:14px}}
+
+.episode-section{margin-top:18px}
+.episode-toolbar{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+.episode-toolbar .field{flex:1 1 200px;margin:0}
+.episode-actions{margin-top:10px}
+.episode-info{margin-top:14px;color:var(--muted);font-size:13px}
+.episode-list{display:grid;gap:7px;margin-top:12px;max-height:540px;overflow:auto}
+.episode-item{display:grid;grid-template-columns:80px minmax(150px,1fr) minmax(110px,auto);gap:10px;align-items:center;padding:11px 12px;border:1px solid var(--border);background:var(--surface2);border-radius:10px;min-width:0}
+.episode-item .epi{font-weight:750}.episode-item .meta-id{font:11px ui-monospace,Consolas,monospace;color:var(--muted);overflow-wrap:anywhere}
+.episode-item .ep-right{text-align:right;font-size:12px;max-width:210px}
+.episode-item .ep-media{color:var(--muted);font-size:11px;margin-top:3px}
+.ep-state{font-weight:700}.ep-locked{color:var(--bad)}.ep-allowed{color:var(--good)}.ep-unknown{color:#f9dba6}
+.episode-metrics{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.episode-metrics .pill{font-size:12px}
+#episodePaste{min-height:110px;max-height:240px}
+@media(max-width:630px){.episode-item{grid-template-columns:65px minmax(80px,1fr);gap:7px}.episode-item .ep-right{grid-column:1/-1;text-align:left;max-width:none}.episode-toolbar .field{flex-basis:100%}}
+
+.public-panel{margin-top:18px}
+.public-controls{display:grid;grid-template-columns:1fr 1fr auto;gap:11px;align-items:end}
+.public-controls .field{margin:0}
+.public-response{max-height:320px;min-height:100px}
+.catalog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin:12px 0}
+.catalog-item{display:flex;gap:10px;align-items:flex-start;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;min-width:0}
+.catalog-item img{width:54px;height:78px;object-fit:cover;border-radius:6px;background:#27344e}
+.catalog-title{font-size:13px;font-weight:650;overflow-wrap:anywhere}
+.catalog-subtitle{font-size:11px;color:var(--muted)}
+.public-label{border:1px solid #496f8f;background:#18304b;color:#b8ddff;padding:8px 12px;border-radius:9px;font-size:13px}
+@media(max-width:750px){.public-controls{grid-template-columns:1fr}.catalog-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:500px){.catalog-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<div class="eyebrow">AnPinime Research / DramaBox 7.0.1</div>
+<h1>DramaBox API Tester</h1>
+<p class="lede">Kiểm thử thủ công 14 endpoint dựa trên báo cáo REA. Chọn API, sửa request JSON và xem phản hồi thực tế. Trang này gửi từng request qua backend Vercel đã đăng nhập, không tự động quét hoặc chuyển tiếp token. Có thể đọc HTTP status thực từ DramaBox ngay cả khi trình duyệt bị CORS.</p>
+<div class="alert"><strong>Trạng thái nguồn:</strong> 14/14 endpoint mới được xác định bằng phân tích tĩnh; chưa có endpoint nào được xác minh trả dữ liệu thành công. REA và phép thử thực tế đều ghi nhận Akamai trả <code>HTTP 403 Access Denied</code>. Server Vercel không thể tự mở khóa lớp bảo vệ này. Phần 4 bên dưới cho phép thử metadata từ nhà cung cấp khác. Vercel không tạo chữ ký sn/tn nên HTTP 403 vẫn có thể xảy ra. Không dùng để vượt xác thực, DRM hoặc quyền xem trả phí.</div>
+<div class="grid">
+<section class="panel">
+<h2>1 · Tạo yêu cầu</h2>
+<div class="field"><label for="base">Máy chủ</label><select id="base"><option value="https://sapi.dramaboxdb.com">sapi.dramaboxdb.com · Chính</option><option value="https://sapi.dramaboxvideo.com">sapi.dramaboxvideo.com · Dự phòng</option></select></div>
+<div class="field"><label for="endpoint">Endpoint</label><select id="endpoint"></select></div>
+<div class="path" id="pathText"></div>
+<div class="two">
+<div class="field"><label for="lang">Ngôn ngữ</label><select id="lang"><option value="vi">Tiếng Việt (vi)</option><option value="en">English (en)</option></select></div>
+<div class="field"><label for="time">Timeout</label><select id="time"><option value="15000">15 giây</option><option value="30000">30 giây</option><option value="60000">60 giây</option></select></div>
+</div>
+<div class="field"><label for="body">Request body · JSON</label><textarea id="body" spellcheck="false"></textarea><div class="hint">Giá trị bookId/chapterId minh họa lấy từ báo cáo REA, không phải ID đã xác minh live. Chỉnh theo dữ liệu thật nếu có.</div></div>
+<p class="hint">Chế độ chẩn đoán an toàn chỉ gửi request không có token. Đăng nhập tài khoản quản trị PineDrama-Web-Studio ở trang chủ trước khi thử. Proxy không hỗ trợ nhập hoặc chuyển tiếp <code>sn</code>/<code>tn</code>.</p>
+<div class="actions">
+<button id="send" class="primary">Gửi POST</button>
+<button id="cancel" disabled>Hủy</button>
+<button id="reset">Đặt lại mẫu</button>
+<button id="copyCurl">Sao chép cURL</button>
+</div>
+</section>
+<section class="panel">
+<h2>2 · Kết quả</h2>
+<div class="meta"><span class="pill" id="status">Chưa gửi</span><span class="pill" id="duration">— ms</span><span class="badge" id="bodySize">—</span></div>
+<pre id="output" class="output">Chọn endpoint rồi nhấn “Gửi POST” để kiểm thử.
+
+Request được gửi qua backend Vercel cùng tên miền. Nếu DramaBox từ chối, trang sẽ hiển thị HTTP 403/401 và nội dung trả về. Cần đăng nhập trang chủ PineDrama-Web-Studio trước.
+
+Nếu nhận HTTP 403, ghi nhận API bị từ chối trong ngữ cảnh kiểm thử; không suy ra endpoint không tồn tại.</pre>
+<div class="actions"><button id="copyResult">Sao chép kết quả</button><button id="clear">Xóa kết quả</button></div>
+<details open><summary>Giải thích lỗi</summary>
+<p class="small"><b>HTTP 200:</b> server trả response; kiểm tra tiếp <code>status</code> trong JSON, mã HTTP 200 chưa chắc thành công nghiệp vụ.</p>
+<p class="small"><b>HTTP 401/403:</b> thiếu quyền, phiên, chữ ký, hoặc WAF từ chối.</p>
+<p class="small"><b>Vercel HTTP 401:</b> chưa đăng nhập website. <b>Vercel HTTP 502:</b> proxy không kết nối được hoặc upstream timeout. <b>DramaBox HTTP 403:</b> WAF hoặc xác thực DramaBox từ chối.</p>
+<p class="small"><b>Timeout:</b> chưa nhận phản hồi trong thời gian đã chọn, không phải kết luận endpoint hỏng.</p>
+</details>
+</section>
+</div>
+
+<section class="panel episode-section" id="episodesPanel">
+<h2>3 · Danh sách tập DramaBox</h2>
+<p class="small">Hiển thị <strong>tất cả tập được API trả về</strong>, gồm tập miễn phí, đã mua và tập khóa. Nhãn khóa chỉ là metadata; việc phát video vẫn cần quyền do DramaBox cấp.</p>
+<div class="episode-toolbar">
+  <div class="field"><label for="episodeBookId">Book ID</label><input id="episodeBookId" inputmode="numeric" autocomplete="off" placeholder="ID phim DramaBox, ví dụ 41000102938"></div>
+  <button id="episodeFetch" class="primary" type="button">Lấy toàn bộ tập</button>
+</div>
+<p class="hint">Nút này dùng endpoint <code>/drama-box/chapterv2/list</code> qua proxy Vercel đang có. Nếu DramaBox trả HTTP 403, danh sách không thể tải được từ máy chủ.</p>
+<details>
+<summary>Dán JSON phản hồi hợp lệ để phân tích ngoại tuyến</summary>
+<div class="field"><label for="episodePaste">Response JSON (không dán token hay cookie)</label><textarea id="episodePaste" spellcheck="false" placeholder='{"status":0,"data":{"list":[{"chapterId":"123","chapterIndex":0,"isCharge":0,"isPay":0}]}}'></textarea></div>
+<div class="actions"><button id="episodeAnalyze" type="button">Phân tích JSON đã dán</button><button id="episodeSample" type="button">Kiểm tra giao diện bằng JSON mẫu</button></div>
+</details>
+<div class="episode-metrics" id="episodeMetrics">
+  <span class="pill">Tổng tập: —</span><span class="pill">Có quyền: —</span><span class="pill">Đang khóa: —</span>
+</div>
+<div class="episode-toolbar episode-actions">
+  <div class="field"><label for="episodeFilter">Lọc tập</label><select id="episodeFilter"><option value="all">Tất cả</option><option value="allowed">Miễn phí / đã mua</option><option value="locked">Tập khóa</option><option value="unknown">Chưa rõ quyền</option></select></div>
+  <div class="field"><label for="episodeSearch">Tìm số tập hoặc ID</label><input id="episodeSearch" autocomplete="off" placeholder="Ví dụ: 12"></div>
+</div>
+<div class="episode-info" id="episodeInfo" role="status">Chưa có dữ liệu. Nhập Book ID và thử tải, hoặc dán response JSON hợp lệ.</div>
+<div class="episode-list" id="episodeList"></div>
+</section>
+
+<section class="panel public-panel" id="publicPanel">
+<h2>4 · Nguồn metadata bên thứ ba (chưa xác minh hoạt động)</h2>
+<p class="public-label"><strong>DramaBox+ API — bên thứ ba, không thuộc DramaBox.</strong> Nguồn này công bố API thử nghiệm để tra cứu danh mục và chi tiết phim. Đây không phải cách mở khóa API chính thức; thông tin từ nguồn này chưa được xác minh độc lập.</p>
+<p class="small">Chỉ gửi dữ liệu tìm kiếm hoặc ID phim khi bạn nhấn nút. Không gửi token, cookie, mật khẩu; không lấy video trả phí. Có thể gặp lỗi 401/429 hoặc nhà cung cấp ngừng dịch vụ.</p>
+<div class="public-controls">
+  <div class="field"><label for="publicAction">Chức năng</label>
+    <select id="publicAction">
+      <option value="trending">Phim thịnh hành</option>
+      <option value="search">Tìm phim theo tên</option>
+      <option value="detail">Chi tiết theo Book ID</option>
+      <option value="languages">Ngôn ngữ</option>
+    </select>
+  </div>
+  <div class="field"><label for="publicQuery">Từ khóa / Book ID</label><input id="publicQuery" autocomplete="off" placeholder="Nhập từ khóa hoặc ID phim"></div>
+  <button id="publicSend" type="button" class="primary">Thử nguồn thay thế</button>
+</div>
+<div class="episode-info" id="publicInfo" role="status">Chưa gửi yêu cầu.</div>
+<div class="catalog-grid" id="publicCards"></div>
+<pre class="output public-response" id="publicOutput">Kết quả JSON của bên thứ ba sẽ xuất hiện ở đây.</pre>
+<div class="actions"><button id="publicCopy" type="button">Sao chép JSON</button>
+  <button id="publicToEpisode" type="button" disabled>Đưa danh sách tập sang bảng kiểm tra</button></div>
+<p class="hint">Tham khảo <a href="https://api.dramabox.asia/docs/" target="_blank" rel="noopener noreferrer" style="color:#b0c6ff">tài liệu DramaBox+ API</a>. Nguồn này có thể đã đổi địa chỉ hoặc bỏ trial key công khai. Nếu nhận 401/403/404, website không thể tự sửa quyền truy cập của nhà cung cấp. Không nhập API key bí mật ở trang web.</p>
+</section>
+<p class="footer"><b>Nguồn:</b> 02-DRAMABOX-API-CONTRACT.md và dramabox-contract.json (REA, 2026-11-03). Mỗi endpoint đều có <code>STATIC_CONFIRMED</code> / <code>BLOCKED_BY_AUTH</code> theo báo cáo. Trang không dùng khóa RSA, không tạo hoặc chuyển tiếp header sn/tn, không thay đổi quyền tập phim. Tất cả phép thử qua Vercel yêu cầu đăng nhập website và bị giới hạn vào 14 endpoint cho sẵn.</p>
+</main>
+<script>
+"use strict";
+const presets = [
+  {group:"Phiên",name:"Bootstrap",path:"/drama-box/ap001/bootstrap",body:{isAdNeedCacheType:0}},
+  {group:"Trang chủ",name:"Theater · Trang chủ",path:"/drama-box/he001/theater",body:{homePageStyle:0,isNeedNewChannel:1,type:0,channelId:0,pageNo:1,index:1,newChannelStyle:0,pullToRefresh:0,partialRefresh:0,alColumnId:0,recSessionId:""}},
+  {group:"Trang chủ",name:"Recommend Book · Đề xuất",path:"/drama-box/he001/recommendBook",body:{isNeedRank:1,specialColumnId:0,pageNo:1,channelId:0,index:1,homePageStyle:0,recSessionId:""}},
+  {group:"Trang chủ",name:"For You · Video gợi ý",path:"/drama-box/he001/recommendChannel",body:{pageNo:1,pageFlag:"",bookId:"",firstStartUp:true,startType:0,recSessionId:""}},
+  {group:"Bảng xếp hạng",name:"Rank · Thịnh hành",path:"/drama-box/he001/rank",body:{rankType:1,recSessionId:""}},
+  {group:"Danh mục",name:"Classify · Lọc phim",path:"/drama-box/home/classify",body:{typeList:[],showLabels:false,pageNo:1,pageSize:15,recSessionId:""}},
+  {group:"Danh mục",name:"Tag Page · Theo nhãn",path:"/drama-box/book/tagPageInfo",body:{tagId:123,sortType:1,pageNo:1,pageSize:15,sourceBookId:"",sourceScene:""}},
+  {group:"Tìm kiếm",name:"Search Index · Từ khóa hot",path:"/drama-box/search/index",body:{addRankType:true}},
+  {group:"Tìm kiếm",name:"Search Suggest · Gợi ý",path:"/drama-box/search/suggest",body:{keyword:"tổng tài",sortType:"",synSwitch:1}},
+  {group:"Tìm kiếm",name:"Search Result · Kết quả",path:"/drama-box/search/search",body:{from:"search_input",keyword:"tổng tài",searchSource:"input",pageNo:1,pageSize:20,sortType:"",synSwitch:1,recSessionId:""}},
+  {group:"Chi tiết",name:"Series Detail · Thông tin phim",path:"/drama-box/chapterv2/detail",body:{needRecommend:true,from:"book_album",bookId:"41000102938"}},
+  {group:"Danh sách tập",name:"Episode List · Toàn bộ tập",path:"/drama-box/chapterv2/list",body:{bookId:"41000102938"}},
+  {group:"Phát video",name:"Batch Load · Metadata phát",path:"/drama-box/chapterv2/batch/load",body:{boundaryIndex:0,comingPlaySectionId:-1,index:0,enterReaderChapterIndex:0,loadDirection:0,startUpKey:"",bookId:"41000102938",pullCid:"",currencyPlaySource:"discover_new_rec_new",needEndRecommend:0,currencyPlaySourceName:"",preLoad:false,trailerId:"",trailerType:0}},
+  {group:"Phát video",name:"Batch VideoPath · TV",path:"/drama-box/chapterv2/batch/videoPath",body:{bookId:"41000102938",chapterMap:{"0":"51000293841"},currencyPlaySource:"",currencyPlaySourceName:""}}
+];
+const el=id=>document.getElementById(id);
+const select=el("endpoint");
+let group="";
+presets.forEach((p,i)=>{
+  if(group!==p.group){group=p.group;const g=document.createElement("optgroup");g.label=group;select.appendChild(g)}
+  const opt=document.createElement("option");opt.value=String(i);opt.textContent=p.name;
+  select.lastElementChild.appendChild(opt);
+});
+let controller=null;
+function preset(){return presets[Number(select.value)||0]}
+function refresh(){const p=preset();el("pathText").textContent="POST "+p.path+"?timestamps=<epoch_ms>";el("body").value=JSON.stringify(p.body,null,2)}
+select.onchange=refresh;
+el("reset").onclick=refresh;
+refresh();
+function makeRequest(){
+  const p=preset();
+  let parsed;
+  try {parsed=JSON.parse(el("body").value)} catch(e){throw Error("JSON không hợp lệ: "+e.message)}
+  if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw Error("Request body phải là JSON object");
+  const url=el("base").value+p.path+"?timestamps="+Date.now();
+  const body=JSON.stringify(parsed);
+  const headers={
+    "Content-Type":"application/json",
+    "Accept":"application/json",
+    "version":"700010",
+    "vn":"7.0.1",
+    "cid":"DRI1000000",
+    "package-name":"com.storymatrix.drama",
+    "language":el("lang").value,
+    "current-language":el("lang").value,
+    "country-code":"VN",
+    "p":"78",
+    "pline":"IOS"
+  };
+  // Không nhận token/chữ ký trong trang. Backend cũng chỉ gửi request unsigned.
+  return {url,body,headers,path:p.path};
+}
+function setResult(title,message,kind){
+  el("status").textContent=title;
+  el("status").className="pill"+(kind==="error"?" error":kind==="ok"?" ok":"");
+  el("output").textContent=message;
+  el("bodySize").textContent=new TextEncoder().encode(message).length+" bytes";
+}
+function setBusy(busy){el("send").disabled=busy;el("cancel").disabled=!busy}
+el("send").onclick=async()=>{
+  if(controller)return;
+  let req;
+  try{req=makeRequest()}catch(e){setResult("JSON sai",e.message,"error");return}
+  const started=performance.now();
+  controller=new AbortController();
+  const active=controller;
+  setBusy(true);
+  el("status").textContent="Đang gửi qua Vercel…";el("duration").textContent="— ms";
+  el("output").textContent="POST "+req.url+"\n\nĐang chờ phản hồi qua backend Vercel...";
+  const timer=setTimeout(()=>active.abort("timeout"),Number(el("time").value));
+  try{
+    const response=await fetch("/api/dramabox/test",{
+      method:"POST",
+      credentials:"same-origin",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({base:el("base").value,path:req.path,language:el("lang").value,body:JSON.parse(req.body)}),
+      signal:active.signal,
+      cache:"no-store"
+    });
+    const result=await response.json();
+    if(!response.ok){
+      const extra=response.status===401?"\n\nBạn chưa đăng nhập website. Hãy mở trang chủ PineDrama-Web-Studio, đăng nhập quản trị rồi quay lại đây.":"";
+      setResult("Vercel HTTP "+response.status,JSON.stringify(result,null,2)+extra,"error");
+      return;
+    }
+    let rendered=result.responseBody||"(response body trống)";
+    if(result.upstreamContentType?.includes("json")){
+      try{rendered=JSON.stringify(JSON.parse(rendered),null,2)}catch{}
+    }
+    setResult("DramaBox HTTP "+result.upstreamStatus+(result.upstreamStatus>=200&&result.upstreamStatus<300?" ✓":" ✕"),
+      "Máy chủ: "+result.remoteHost+"\n"+
+      "Endpoint: "+result.path+"\n"+
+      "HTTP: "+result.upstreamStatus+" "+result.upstreamStatusText+"\n"+
+      "Content-Type: "+result.upstreamContentType+"\n"+
+      "Thời gian (server): "+result.durationMs+" ms\n"+
+      (result.truncated?"Response đã cắt giới hạn 96 KiB\n":"")+
+      "\n"+(result.blockedByEdge?"\nPHÂN LOẠI: AKAMAI EDGE BLOCK — API gốc đã từ chối trước khi trả JSON. Không sửa được bằng CORS. Có thể thử phần 4: Nguồn metadata thay thế.\n\n":"")+rendered,
+      result.upstreamStatus>=200&&result.upstreamStatus<300?"ok":"error");
+  }catch(e){
+    const timedOut=active.signal.aborted&&active.signal.reason==="timeout";
+    const canceled=active.signal.aborted&&!timedOut;
+    setResult(timedOut?"Timeout":canceled?"Đã hủy":"Lỗi kết nối Vercel",
+      timedOut?"Request mất nhiều thời gian hơn thời hạn đã chọn.":
+      canceled?"Yêu cầu đã được hủy.":
+      "Không đọc được phản hồi của backend Vercel. Kiểm tra deployment hoặc kết nối mạng.\nChi tiết: "+String(e.message||e),
+      "error");
+  }finally{
+    clearTimeout(timer);el("duration").textContent=Math.round(performance.now()-started)+" ms";
+    if(controller===active)controller=null;setBusy(false);
+  }
+};
+el("cancel").onclick=()=>{if(controller)controller.abort("user")};
+function shellQuote(s){return "'"+String(s).replace(/'/g,"'\\''")+"'";}
+el("copyCurl").onclick=async()=>{
+  try{
+    const r=makeRequest();
+    const parts=["curl -i --max-time 30 -X POST "+shellQuote(r.url)];
+    for(const [k,v] of Object.entries(r.headers))parts.push("  -H "+shellQuote(k+": "+v));
+    parts.push("  --data-raw "+shellQuote(r.body));
+    const command=parts.join(" \\\n");
+    await navigator.clipboard.writeText(command);
+    el("status").textContent="Đã copy cURL";
+  }catch(e){
+    const r=makeRequest();const parts=["curl -i --max-time 30 -X POST "+shellQuote(r.url)];
+    for(const [k,v] of Object.entries(r.headers))parts.push("  -H "+shellQuote(k+": "+v));
+    parts.push("  --data-raw "+shellQuote(r.body));
+    el("output").textContent="Trình duyệt không cho sao chép tự động; copy lệnh dưới đây (Git Bash):\n\n"+parts.join(" \\\n");
+  }
+};
+el("copyResult").onclick=async()=>{try{await navigator.clipboard.writeText(el("output").textContent)}catch{el("status").textContent="Không sao chép được";}};
+el("clear").onclick=()=>{setResult("Chưa gửi","Chưa có phản hồi.","")};
+
+const episodeState={rows:[],source:""};
+const episodeId=x=>{
+  if(typeof x==="string")return x;
+  if(typeof x==="bigint")return x.toString();
+  if(typeof x==="number")return Number.isSafeInteger(x)?String(x):"[ID số không an toàn: cần chuỗi gốc]";
+  return "";
+};
+const epFlag=v=>v===0||v==="0"?0:v===1||v==="1"?1:null;
+function collectEpisodes(payload){
+  const envelope=payload&&typeof payload==="object"&&typeof payload.responseBody==="string"?JSON.parse(payload.responseBody):payload;
+  if(!envelope||typeof envelope!=="object"||Array.isArray(envelope))throw Error("Phản hồi phải là JSON object.");
+  if(envelope.status!==undefined&&envelope.status!==0&&envelope.status!=="0")
+    throw Error("DramaBox báo lỗi nghiệp vụ: status="+String(envelope.status)+" "+String(envelope.message||""));
+  const root=envelope.data||envelope;
+  const candidates=[root?.list,root?.chapterList,root?.album?.chapterList,root?.album?.list,root?.book?.chapterList,root?.book?.list,root?.chapterListData?.list];
+  const list=candidates.find(Array.isArray);
+  if(!list)throw Error("Không tìm thấy data.list hoặc data.chapterList. Hãy dùng JSON phản hồi danh sách tập/Batch Load.");
+  const rows=list.filter(x=>x&&typeof x==="object"&&!Array.isArray(x)).map((ep,i)=>{
+    const index=Number(ep.chapterIndex);
+    const number=Number.isSafeInteger(index)&&index>=0?index+1:i+1;
+    const charge=epFlag(ep.isCharge),pay=epFlag(ep.isPay);
+    // Không đánh dấu tập là miễn phí khi thiếu quyền truy cập.
+    const access=charge===0||pay===1?"allowed":charge===1&&pay===0?"locked":"unknown";
+    let mp4=0,hls=0;
+    if(Array.isArray(ep.cdnList))for(const cdn of ep.cdnList)if(Array.isArray(cdn?.videoPathList))
+      for(const item of cdn.videoPathList)if(typeof item?.videoPath==="string"&&item.videoPath)mp4++;
+    if(Array.isArray(ep.m3u8CdnList))for(const cdn of ep.m3u8CdnList)
+      if(typeof cdn?.videoPath==="string"&&cdn.videoPath)hls++;
+    return {number,id:episodeId(ep.chapterId??ep.id),title:typeof ep.chapterName==="string"?ep.chapterName:"",access,charge,pay,mp4,hls};
+  });
+  rows.sort((a,b)=>a.number-b.number);
+  return rows;
+}
+function setEpisodeRows(rows,source){
+  episodeState.rows=rows;
+  episodeState.source=source;
+  el("episodeFilter").value="all";
+  el("episodeSearch").value="";
+  renderEpisodes();
+}
+function renderEpisodes(){
+  const rows=episodeState.rows,total=rows.length;
+  const counts={allowed:0,locked:0,unknown:0};
+  for(const row of rows)counts[row.access]++;
+  const metrics=el("episodeMetrics");
+  metrics.replaceChildren();
+  for(const value of ["Tổng tập: "+total,"Miễn phí/đã mua: "+counts.allowed,"Khóa: "+counts.locked,"Chưa rõ: "+counts.unknown]){
+    const pill=document.createElement("span");pill.className="pill";pill.textContent=value;metrics.appendChild(pill);
+  }
+  const filter=el("episodeFilter").value,search=el("episodeSearch").value.trim().toLowerCase();
+  const shown=rows.filter(x=>(filter==="all"||x.access===filter)&&(!search||String(x.number).includes(search)||x.id.toLowerCase().includes(search)||x.title.toLowerCase().includes(search)));
+  el("episodeInfo").textContent=episodeState.source+" · Hiển thị "+shown.length+"/"+total+" tập. Có URL trong metadata không đồng nghĩa có quyền phát; tập khóa không được mở bằng cách sửa giao diện.";
+  const list=el("episodeList");
+  list.replaceChildren();
+  if(!shown.length){const msg=document.createElement("p");msg.className="small";msg.textContent=total?"Không có tập nào khớp bộ lọc.":"Danh sách trống hoặc API chưa trả tập.";list.appendChild(msg);return}
+  const frag=document.createDocumentFragment();
+  for(const ep of shown){
+    const item=document.createElement("div");item.className="episode-item";
+    const num=document.createElement("span");num.className="epi";num.textContent="Tập "+ep.number;
+    const mid=document.createElement("div");
+    const name=document.createElement("div");name.textContent=ep.title||"Tập "+ep.number;
+    const id=document.createElement("div");id.className="meta-id";id.textContent="chapterId: "+(ep.id||"chưa có");
+    mid.append(name,id);
+    const right=document.createElement("div");right.className="ep-right";
+    const status=document.createElement("div");status.className="ep-state ep-"+ep.access;
+    status.textContent=ep.access==="allowed"?(ep.pay===1?"Đã mua / mở khóa":"Miễn phí"):ep.access==="locked"?"Đang khóa":"Chưa xác minh quyền";
+    const media=document.createElement("div");media.className="ep-media";
+    media.textContent=ep.mp4||ep.hls?("Metadata: "+ep.mp4+" MP4, "+ep.hls+" HLS"):"Chưa có URL phát trong phản hồi";
+    right.append(status,media);item.append(num,mid,right);frag.appendChild(item);
+  }
+  list.appendChild(frag);
+}
+el("episodeFilter").addEventListener("change",renderEpisodes);
+el("episodeSearch").addEventListener("input",renderEpisodes);
+el("episodeSample").addEventListener("click",()=>{
+  const sample={status:0,message:"DỮ LIỆU MINH HỌA, KHÔNG PHẢI DRAMABOX",data:{list:[
+    {chapterId:"DEMO-1",chapterIndex:0,chapterName:"Tập 1 - Mẫu",isCharge:0,isPay:0},
+    {chapterId:"DEMO-2",chapterIndex:1,chapterName:"Tập 2 - Mẫu",isCharge:1,isPay:0},
+    {chapterId:"DEMO-3",chapterIndex:2,chapterName:"Tập 3 - Mẫu",isCharge:1,isPay:1},
+    {chapterId:"DEMO-4",chapterIndex:3,chapterName:"Tập 4 - Mẫu"}
+  ]}};
+  el("episodePaste").value=JSON.stringify(sample,null,2);
+  setEpisodeRows(collectEpisodes(sample),"DỮ LIỆU MẪU NGOẠI TUYẾN - KHÔNG PHẢI VIDEO THẬT");
+});
+el("episodeAnalyze").addEventListener("click",()=>{
+  try{const rows=collectEpisodes(JSON.parse(el("episodePaste").value));setEpisodeRows(rows,"Phân tích JSON đã dán")}
+  catch(e){el("episodeInfo").textContent="Lỗi phân tích: "+String(e.message||e)}
+});
+el("episodeFetch").addEventListener("click",async()=>{
+  const bookId=el("episodeBookId").value.trim();
+  if(!/^[1-9][0-9]{0,18}$/.test(bookId)){el("episodeInfo").textContent="Book ID phải là chuỗi số nguyên dương.";return}
+  if(controller){el("episodeInfo").textContent="Một request đang chạy. Hãy hoàn thành hoặc hủy trước.";return}
+  const button=el("episodeFetch");button.disabled=true;
+  el("episodeInfo").textContent="Đang lấy danh sách tập qua Vercel...";
+  const active=new AbortController();const timeout=setTimeout(()=>active.abort(),15000);
+  try{
+    const res=await fetch("/api/dramabox/test",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({base:el("base").value,path:"/drama-box/chapterv2/list",language:el("lang").value,body:{bookId}}),
+      signal:active.signal,cache:"no-store"});
+    const response=await res.json();
+    if(!res.ok)throw Error("Vercel HTTP "+res.status+": "+String(response.error||"Lỗi backend"));
+    if(response.upstreamStatus!==200)throw Error("DramaBox HTTP "+response.upstreamStatus+" "+(response.upstreamStatus===403?"— Akamai/xác thực từ chối. API gốc chưa thể cấp danh sách tập. Có thể thử phần 4 để xem metadata công khai.":"— máy chủ không trả danh sách thành công."));
+    const rows=collectEpisodes(response);
+    setEpisodeRows(rows,"DramaBox HTTP 200 · "+bookId);
+  }catch(e){el("episodeInfo").textContent="Không thể lấy danh sách: "+String(e.message||e)}
+  finally{clearTimeout(timeout);button.disabled=false}
+});
+
+
+let publicLastPayload=null,publicLastRows=null;
+function publicChoice(){
+  const action=el("publicAction").value;
+  el("publicQuery").disabled=action==="trending"||action==="languages";
+  el("publicQuery").placeholder=action==="detail"?"Book ID (ví dụ 42000014017)":action==="search"?"Từ khóa tìm phim":"Không cần nhập";
+}
+el("publicAction").addEventListener("change",publicChoice);
+publicChoice();
+function publicGetItems(data){
+  if(Array.isArray(data))return data;
+  if(!data||typeof data!=="object")return [];
+  const candidates=[data.items,data.results,data.records,data.dramaList,data.list,data.data?.items,
+    data.data?.records,data.data?.list,data.data?.dramas,data.data?.searchList,data.data?.rankList];
+  return candidates.find(Array.isArray)||[];
+}
+function renderPublicCards(payload){
+  const cards=el("publicCards");cards.replaceChildren();
+  const rows=publicGetItems(payload);
+  if(!rows.length&&payload?.data&&typeof payload.data==="object"&&!Array.isArray(payload.data))rows.push(payload.data);
+  for(const item of rows.slice(0,24)){
+    if(!item||typeof item!=="object")continue;
+    const title=String(item.title||item.bookName||item.name||"Không có tên");
+    const id=String(item.id||item.bookId||"");
+    const card=document.createElement("div");card.className="catalog-item";
+    const cover=String(item.cover||item.cover_url||item.bookCover||"");
+    if(/^https:\/\//i.test(cover)){
+      const img=document.createElement("img");img.src=cover;img.alt="Poster";img.loading="lazy";img.referrerPolicy="no-referrer";card.appendChild(img);
+    }
+    const info=document.createElement("div");
+    const name=document.createElement("div");name.className="catalog-title";name.textContent=title;
+    const secondary=document.createElement("div");secondary.className="catalog-subtitle";
+    secondary.textContent=(id?"ID: "+id+" · ":"")+(item.episode_count??item.episodes??item.chapterCount??item.totalChapterNum??"")+" tập";
+    info.append(name,secondary);card.appendChild(info);cards.appendChild(card);
+  }
+}
+el("publicSend").addEventListener("click",async()=>{
+  const action=el("publicAction").value,query=el("publicQuery").value.trim();
+  const button=el("publicSend");button.disabled=true;
+  el("publicInfo").textContent="Đang gửi đến nguồn metadata bên thứ ba qua Vercel…";
+  el("publicCards").replaceChildren();el("publicOutput").textContent="Đang chờ…";
+  el("publicToEpisode").disabled=true;publicLastPayload=null;publicLastRows=null;
+  const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),16000);
+  try{
+    const resp=await fetch("/api/dramabox/public",{method:"POST",credentials:"same-origin",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action,query,lang:el("lang").value}),cache:"no-store",signal:ac.signal});
+    const data=await resp.json();
+    if(!resp.ok)throw Error("Vercel HTTP "+resp.status+": "+String(data.error||"Không rõ lỗi"));
+    el("publicInfo").textContent="DramaBox+ HTTP "+data.upstreamStatus+" · "+data.durationMs+" ms · "+data.provider+
+      (data.truncated?" · Phản hồi bị cắt ở 120 KiB":"");
+    if(data.upstreamStatus<200||data.upstreamStatus>=300){
+      el("publicOutput").textContent="Nhà cung cấp bên thứ ba trả HTTP "+data.upstreamStatus+
+        "\n"+(data.responseBody||"Không có nội dung")+
+        "\n\nKhông đồng nghĩa máy chủ DramaBox chính thức đã được mở khóa.";
+      return;
+    }
+    let payload;
+    try{payload=JSON.parse(data.responseBody)}catch{throw Error("Nhà cung cấp không trả JSON hợp lệ.");}
+    publicLastPayload=payload;
+    el("publicOutput").textContent=JSON.stringify(payload,null,2);
+    renderPublicCards(payload);
+    try{
+      publicLastRows=collectEpisodes(payload);
+      el("publicToEpisode").disabled=false;
+      el("publicInfo").textContent+=" · Có "+publicLastRows.length+" tập trong metadata";
+    }catch{}
+  }catch(e){
+    el("publicInfo").textContent="Không truy vấn được nguồn metadata: "+String(e.message||e);
+    el("publicOutput").textContent="Dịch vụ bên thứ ba có thể lỗi, giới hạn lượt dùng hoặc chưa hỗ trợ dữ liệu này.";
+  }finally{clearTimeout(timer);button.disabled=false}
+});
+el("publicToEpisode").addEventListener("click",()=>{
+  if(!publicLastRows)return;
+  setEpisodeRows(publicLastRows,"Metadata bên thứ ba (không phải dữ liệu API chính thức)");
+  el("episodesPanel").scrollIntoView({behavior:"smooth",block:"start"});
+});
+el("publicCopy").addEventListener("click",()=>{
+  const val=el("publicOutput").textContent;
+  navigator.clipboard?.writeText(val).then(()=>{el("publicInfo").textContent="Đã sao chép JSON."}).catch(()=>{el("publicInfo").textContent="Không sao chép tự động được, hãy chọn nội dung thủ công."});
+});
+
+</script>
+</body>
+</html>
