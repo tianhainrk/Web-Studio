@@ -68,7 +68,16 @@ export async function getPost(id){
   return (await db("publisher_posts",{query:{id:"eq."+id,select:"*"}}))[0]||null;
 }
 export async function posts(campaignId){
-  return db("publisher_posts",{query:{campaign_id:"eq."+campaignId,select:"*",order:"scheduled_at.asc",limit:5000}});
+  const all=[];
+  for(let offset=0;offset<5000;offset+=500){
+    const page=await db("publisher_posts",{query:{
+      campaign_id:"eq."+campaignId,select:"*",order:"scheduled_at.asc,id.asc",
+      limit:500,offset
+    }});
+    all.push(...page);
+    if(page.length<500)break;
+  }
+  return all;
 }
 export async function patchPost(id,changes,extra={}){
   const rows=await db("publisher_posts",{method:"PATCH",query:{id:"eq."+id,...extra},
