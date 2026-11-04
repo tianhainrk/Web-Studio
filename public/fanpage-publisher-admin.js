@@ -34,9 +34,31 @@ async function refreshConnections(){
       lines.push("Fanpage: "+conn.pages.length);
       lines.push("Drive backend: "+(conn.driveConnected?"đã kết nối":"chưa kết nối"));
       const datalist=$("fpKnownPages");datalist.replaceChildren();
+      const connectionList=$("fpConnectionList");connectionList.replaceChildren();
+      if(conn.driveConnected){
+        const drive=el("div","","row");
+        drive.style.cssText="justify-content:space-between;align-items:center";
+        drive.append(el("span","Google Drive — đã kết nối"));
+        const disconnect=el("button","Ngắt Drive","detail-secondary");
+        disconnect.onclick=async()=>{
+          if(!window.confirm("Ngắt quyền Drive của Publisher? Các lịch đã Meta xác nhận không bị xóa."))return;
+          try{await api("disconnect",{method:"POST",body:{provider:"google"}});await refreshConnections();}
+          catch(e){message(e.message,true);}
+        };
+        drive.append(disconnect);connectionList.append(drive);
+      }
       for(const page of conn.pages){
         const option=el("option");option.value=page.metadata?.pageId||page.id.replace("meta-page-","");
         option.label=page.display_name;datalist.append(option);
+        const entry=el("div","","row");entry.style.cssText="justify-content:space-between;align-items:center;gap:10px";
+        entry.append(el("span",page.display_name+" · "+option.value));
+        const disconnect=el("button","Ngắt Page","detail-secondary");
+        disconnect.onclick=async()=>{
+          if(!window.confirm("Ngắt liên kết "+page.display_name+"?"))return;
+          try{await api("disconnect",{method:"POST",body:{provider:"meta",id:option.value}});await refreshConnections();}
+          catch(e){message(e.message,true);}
+        };
+        entry.append(disconnect);connectionList.append(entry);
       }
     }catch(e){lines.push("Kết nối: "+e.message);}
   }
