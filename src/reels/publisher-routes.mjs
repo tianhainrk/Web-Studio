@@ -3,7 +3,7 @@ import {buildCampaignSchedule} from "./campaign-schedule.mjs";
 import {db,storageReady,insertCampaign,listCampaigns,campaign,posts,getPost,patchPost} from "./publisher-storage.mjs";
 import {aiConfigured,generateCaption} from "./publisher-ai.mjs";
 import {oauthStart,oauthFinish,validateOAuthState,connectedResources,disconnectProvider} from "./publisher-oauth.mjs";
-import {beginVideoUpload,transferOneChunk,finalizeVideoUpload,videoStatus,resetFailedUpload} from "./publisher-video.mjs";
+import {beginVideoUpload,transferOneChunk,finalizeVideoUpload,videoStatus,resetFailedUpload,cancelScheduledVideo} from "./publisher-video.mjs";
 
 const uuid=x=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(x||""));
 const result=(body,code=200)=>({code,body});
@@ -185,6 +185,10 @@ export async function publisherRoute(p,req,body,sessionCookie,query){
   if(p==="/publisher/upload/retry"&&req.method==="POST"){
     if(!uuid(body.id)||body.confirm!==true)throw error("Cần xác nhận khôi phục upload");
     return result({post:await resetFailedUpload(body.id)});
+  }
+  if(p==="/publisher/upload/cancel"&&req.method==="POST"){
+    if(!uuid(body.id)||body.confirm!==true)throw error("Cần xác nhận xóa lịch đã đặt trên Facebook");
+    return result({post:await cancelScheduledVideo(body.id)});
   }
   if(p==="/publisher/upload/reconcile"&&req.method==="POST"){
     if(!uuid(body.id))throw error("Post ID không hợp lệ");
