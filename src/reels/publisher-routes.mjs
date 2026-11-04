@@ -1,6 +1,6 @@
 import {randomUUID} from "node:crypto";
 import {buildCampaignSchedule} from "./campaign-schedule.mjs";
-import {db,storageReady,insertCampaign,listCampaigns,campaign,posts,getPost,patchPost} from "./publisher-storage.mjs";
+import {db,storageReady,insertCampaign,listCampaigns,campaign,posts,getPost,patchPost,recordEvent,listEvents} from "./publisher-storage.mjs";
 import {aiConfigured,generateCaption} from "./publisher-ai.mjs";
 import {oauthStart,oauthFinish,validateOAuthState,connectedResources,disconnectProvider} from "./publisher-oauth.mjs";
 import {beginVideoUpload,transferOneChunk,finalizeVideoUpload,videoStatus,resetFailedUpload,cancelScheduledVideo} from "./publisher-video.mjs";
@@ -46,6 +46,7 @@ async function createCampaign(data){
       }))
     }
   },plan.map(x=>postFields(x,data)));
+  await recordEvent(saved.id,null,"campaign_created",{status:"draft"}).catch(()=>{});
   return {campaign:saved,posts:plan.length};
 }
 async function makeCaption(id){
@@ -79,10 +80,14 @@ async function approvePost(id,changes){
   if(caption.length<5)throw error("Hãy kiểm tra và duyệt caption trước");
   const title=String(changes.title??p.title??"").trim().slice(0,150);
   const hashtags=Array.isArray(changes.hashtags)?changes.hashtags:p.hashtags;
-  return patchPost(id,{
+  const updated=await patchPost(id,{
     caption,title,hashtags:Array.isArray(hashtags)?hashtags.slice(0,10):[],
     editorial_approved:true,status:"approved"
   },{status:"eq."+p.status});
+  await recordEvent(p.campaign_id,id,"caption_approved",{
+    status:"approved",episode_number:p.episode_number
+  }).catch(()=>{});
+  return updated;
 }
 async function approveCampaign(id){
   const c=await campaign(id);
@@ -95,6 +100,7 @@ async function approveCampaign(id){
   const r=await db("publisher_campaigns",{method:"PATCH",query:{id:"eq."+id,status:"eq.draft"},
     data:{status:"approved",updated_at:new Date().toISOString()},prefer:"return=representation"});
   if(!r.length)throw error("Chiến dịch đã đổi trạng thái",409);
+  await recordEvent(id,null,"campaign_approved",{status:"approved"}).catch(()=>{});
   return r[0];
 }
 async function updateCaption(id,body){
@@ -137,6 +143,12 @@ export async function publisherRoute(p,req,body,sessionCookie,query){
     if(!["meta","google"].includes(body.provider))throw error("Provider không hợp lệ");
     return result({ok:true,result:await disconnectProvider(body.provider,body.id)});
   }
+  if(p==="/publisher/events"&&req.method==="GET"){
+    const id=query.get("id");
+    if(!uuid(id))throw error("Campaign ID không hợp lệ");
+    if(!await campaign(id))throw error("Chiến dịch không tồn tại",404);
+    return result({events:await listEvents(id)});
+  }
   if(p==="/publisher/campaigns"&&req.method==="GET")
     return result({campaigns:await listCampaigns()});
   if(p==="/publisher/campaigns"&&req.method==="POST")
@@ -171,7 +183,11 @@ export async function publisherRoute(p,req,body,sessionCookie,query){
   }
   if(p==="/publisher/upload/start"&&req.method==="POST"){
     if(!uuid(body.id)||body.confirm!==true)throw error("Cần xác nhận upload bài");
-    return result({post:await beginVideoUpload(body.id)});
+    const post=await beginVideoUpload(body.id);
+    await recordEvent(post.campaign_id,post.id,"upload_started",{
+      status:post.status,meta_video_id:post.meta_video_id
+    }).catch(()=>{});
+    return result({post});
   }
   if(p==="/publisher/upload/step"&&req.method==="POST"){
     if(!uuid(body.id))throw error("Post ID không hợp lệ");
@@ -179,7 +195,11 @@ export async function publisherRoute(p,req,body,sessionCookie,query){
   }
   if(p==="/publisher/upload/finish"&&req.method==="POST"){
     if(!uuid(body.id)||body.confirm!==true)throw error("Cần xác nhận lên lịch Meta");
-    return result({post:await finalizeVideoUpload(body.id)});
+    const post=await finalizeVideoUpload(body.id);
+    await recordEvent(post.campaign_id,post.id,"meta_schedule_accepted",{
+      status:post.status,meta_video_id:post.meta_video_id
+    }).catch(()=>{});
+    return result({post});
   }
   if(p==="/publisher/upload/retry"&&req.method==="POST"){
     if(!uuid(body.id)||body.confirm!==true)throw error("Cần xác nhận khôi phục upload");
@@ -187,7 +207,9 @@ export async function publisherRoute(p,req,body,sessionCookie,query){
   }
   if(p==="/publisher/upload/cancel"&&req.method==="POST"){
     if(!uuid(body.id)||body.confirm!==true)throw error("Cần xác nhận xóa lịch đã đặt trên Facebook");
-    return result({post:await cancelScheduledVideo(body.id)});
+    const post=await cancelScheduledVideo(body.id);
+    await recordEvent(post.campaign_id,post.id,"meta_schedule_cancelled",{status:"cancelled"}).catch(()=>{});
+    return result({post});
   }
   if(p==="/publisher/upload/reconcile"&&req.method==="POST"){
     if(!uuid(body.id))throw error("Post ID không hợp lệ");
