@@ -8,7 +8,18 @@ Private, standalone browser dashboard for PineDrama metadata and playback, based
 - Video player using the browser's native player. Some MP4/HLS streams may fail because of codec, expired URLs, CDN restrictions, browser CORS, or host-side requirements. No bypass or DRM extraction.
 - Password-protected admin page and session cookies. For production, add rate limiting upstream (e.g. Vercel Firewall).
 - Google Drive OAuth in-browser with \`drive.file\` scope; create/use \`PineDrama-Library\` folder, upload user-selected **authorized** video via resumable chunks directly to Google (without Vercel function size limits).
-- Reels Manager **draft queue only**, kept in browser session. Real Facebook automated publishing is not enabled; requires separately authorized Meta Page API, licensed media and persistent job storage.
+- **AI Fanpage Publisher v2 (development branch):** dynamic Page/movie scheduling, AI caption generation (Gemini/Muse), server OAuth, encrypted credentials, persistent Supabase campaign state, chunked Google Drive→Meta Page Video upload, scheduling, status reconciliation and explicit cancellation. **Meta API integration is not yet tested on a real Page** and must not be treated as production-ready.
+
+## AI Fanpage Publisher v2 — setup (not deployed)
+
+This feature lives in the development branch `feature/ai-fanpage-publisher-v2`. The legacy Studio on `main` is unchanged, and the user will deploy a new Vercel project only when integration testing is finished.
+
+- Required SQL schema: [sql/publisher-schema.sql](sql/publisher-schema.sql).
+- Full OAuth, AI, Meta upload, safety, free-tier and deployment guide: [docs/publisher-deployment.md](docs/publisher-deployment.md).
+- Configurable Pages, movie assignments, episode ranges, schedule, time zones, Gemini/Muse choice.
+- Server-held Meta Page tokens and Google refresh token are AES-GCM encrypted in Supabase. Do not put them in localStorage or source control.
+- Videos remain unmodified MP4; bulk upload is browser-initiated and may require keeping that browser tab open during preparation. Once Meta accepts a scheduled publication, publication itself does not need the browser.
+- **Limitation:** Hobby is for noncommercial use and has usage/fair-use limits. Large volume media relay may exceed them. External test of the Meta Page Videos API with a licensed 5-minute MP4 is still required.
 
 ## Vercel deployment
 1. Import this private GitHub repository at https://vercel.com/new.
