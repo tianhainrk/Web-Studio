@@ -115,7 +115,7 @@ async function refreshAll(){
   for(const [name,ok] of Object.entries(cfg)){if(typeof ok!=="boolean")continue;$("statusPanel").append(el("span",name+": "+(ok?"đã cấu hình":"chưa cấu hình"),"pill"));}
   await Promise.all([refreshPages(),refreshReports()]);
 }
-function todayVietnam(){const parts=new Intl.DateTimeFormat("en-CA",{timeZone:zone,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());return parts;}
+function todayVietnam(){const p=new Intl.DateTimeFormat("en-GB",{timeZone:zone,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const v=Object.fromEntries(p.map(x=>[x.type,x.value]));return v.year+"-"+v.month+"-"+v.day;}
 $("startDate").value=todayVietnam();
 $("google").onclick=()=>connect("google");
 $("meta").onclick=()=>connect("meta");
