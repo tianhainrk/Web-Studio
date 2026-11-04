@@ -1,72 +1,46 @@
-# AI Fanpage Publisher v2 — Dynamic Campaign Builder
+# AI Fanpage Publisher v2 — implementation status
 
-**Development preview only.** This branch does not automatically post or schedule Facebook media. The live `main` branch remains untouched.
+**Repository:** tianhainrk/PineDrama-Web-Studio  
+**Development branch:** feature/ai-fanpage-publisher-v2  
+**Deployment:** intentionally deferred until the user deploys after live Meta verification.
 
-## Product requirement
+## Objective
 
-All campaign settings are configured **in the Studio website**, not hard-coded in source:
+A configurable publishing workspace on the website: no hardcoded number of Pages, films, episodes or dates; no logo rendering or transcoding. All MP4 inputs are already in Drive. AI may use Gemini or Muse Model API, with provider selected in the UI. Media can be pre-uploaded and scheduled via Meta Page Video API, subject to live eligibility and endpoint testing.
 
-- Add, edit or remove Page-to-movie assignments. Any supported number of Pages can be used (max 50 assignments per preview for resource safety).
-- A Page may have more than one movie; the same movie may be assigned to different Pages. Duplicate Page+movie and duplicate Page+Drive-file combinations are rejected.
-- Pick a movie and actual uploaded MP4 episodes from the existing Google Drive Manager, with optional first/last episode filters. **Do not assume 80 episodes.**
-- Configure campaign start date, 1–90 day horizon, default 1–100 episodes per day, local publish window, and staggering. Each Page-to-movie assignment may override daily pace and day count.
-- Configure AI provider (Gemini / MuseAI) and caption tone via website. API integrations and credentials will be implemented later, gated by verified provider API access.
-- Preview all expected publishing timestamps in `Asia/Ho_Chi_Minh`, show per-assignment counts and status before any future action.
-- Save/restore **nonsecret configuration locally in the browser** and export the preview as JSON. Multi-device persistent storage is a future database phase.
-- Existing MP4 files must remain unchanged; no FFmpeg or watermarks.
+## Implemented
 
-## Implemented on the development branch
+- Existing Studio tab: **AI Fanpage Publisher**
+- Dynamic Page-to-film assignments, episode start/end, daily pace overrides, campaign dates, time window and stagger.
+- Existing Drive Manager library reused for MP4 selection; configuration is saved locally for convenience and persisted centrally when a campaign is created.
+- Read-only schedule preview endpoint with Vietnam-local and UTC times, rights status, duplicate file checks and capacity validation.
+- Supabase SQL schema + PostgREST adapter for persistent campaigns, posts and encrypted credentials.
+- Meta and Google Drive OAuth code flow with HMAC-bound CSRF state, server-side storage and connection management.
+- Gemini and Meta Muse caption generation with a conservative prompt and manual editable review.
+- Individual and batch AI calls; explicit per-post and per-campaign editorial approval.
+- Google Drive -> Meta Page Video upload in restartable chunks, bounded to a single chunk per request; status tracking and scheduler finish.
+- Post scheduling acknowledgment stored in database, user-triggered reconciliation to inspect Page video publishing status and explicit scheduled video deletion.
+- Dashboard showing all saved campaigns, upload status and failed/ambiguous jobs.
+- Unit tests for dynamic schedules, encrypted values, OAuth state, both AI providers and a mocked Drive-to-Meta upload/publishing path.
+- New test syntax checks for server and browser modules in GitHub Actions.
 
-- `src/reels/campaign-schedule.mjs`: pure configurable UTC schedule preview; accepts variable Page assignments and existing MP4 file lists; validates count, dates, duplicate resources and rights.
-- `POST /api/reels/preview`: authenticated draft-only endpoint. No Facebook or AI calls are made.
-- `public/fanpage-publisher.js` + Studio `AI Fanpage Publisher` tab: dynamic Page/movie rows, Drive library chooser, editable windows, preview, browser-local save/restore and JSON export.
-- `tests/reels-schedule.test.mjs`: fixed-size regression example plus variable-size and per-assignment tests.
+## Not yet verifiable without real user-controlled external configuration
 
-## Configuration model (no hard-coded 5, 80 or 7)
+1. A Meta Developer App with approved Page publishing permissions and a real connected Page.
+2. A Google Cloud OAuth web client with a working Drive refresh token.
+3. User-supplied API credentials for Gemini and/or Muse. The Muse selection requires **Model API** credentials, not only an end-user website quota.
+4. Supabase database created and environment values configured in the future deployed website.
+5. A real Meta Page API test using one authorized 5-minute MP4. Meta acceptance of scheduling and final Reel visibility cannot be inferred from mocked tests.
+6. Monitoring real traffic against Vercel Hobby fair-use quotas. Heavy media forwarding might require different hosting; a personal browser is required during the pre-upload phase.
 
-```json
-{
-  "campaignName": "Chiến dịch tùy chọn",
-  "aiProvider": "gemini",
-  "captionTone": "natural",
-  "startDate": "2026-11-10",
-  "days": 10,
-  "dailyLimit": 4,
-  "windowStart": "09:00",
-  "windowEnd": "20:00",
-  "staggerMinutes": 2,
-  "timezone": "Asia/Ho_Chi_Minh",
-  "pages": [
-    {
-      "pageId": "12345678910",
-      "seriesId": "my_movie",
-      "episodes": [
-        {
-          "number": 1,
-          "driveFileId": "drive_file_id_001",
-          "rightsApproved": true
-        }
-      ]
-    }
-  ]
-}
-```
+## Known deliberate safeguards
 
-A `pages[]` element represents a Page-to-series **assignment**, not necessarily a unique Page. Individual entries may also provide `days` and `dailyLimit` overrides.
+- Default is draft-only; no upload before explicit rights and editorial confirmation.
+- Once an upload action might have reached Meta and its outcome is ambiguous, the job is marked for reconciliation rather than blind retry.
+- No Page token, Google refresh token or model API key is exposed to browser JavaScript.
+- No background job is promised after the browser is closed **before Meta has accepted the schedule**.
+- Keep the development PR as a draft until the external acceptance gates succeed.
 
-The server returns draft rows with Page ID, Series ID, episode number, Drive File ID, local date/time, UTC timestamp and rights/editorial states. None is automatically approved for publication.
+## Setup
 
-## Future stages / release gates
-
-1. **Meta OAuth and Pages:** connect actual Pages via Meta, verify privileges, and replace temporary manual Page ID entry with a selectable Page list.
-2. **Gemini / Muse API:** store credentials encrypted server-side, support validated JSON caption output, retries and manual review. Muse brand/model/API credentials must be confirmed; UI selection does not imply working connection.
-3. **Meta five-minute test:** with authorized footage, verify Page Video upload, scheduled publishing, and the specific Page's Reel behavior.
-4. **Durable persistence:** database for campaigns, uploads and Meta IDs; resume after refresh, retries, reconciliation, locks and idempotency.
-5. **Hobby compatibility:** split media transfers into bounded tasks; verify Vercel Hobby limits, else choose a compliant external transfer service without requiring a continuously running PC.
-6. **Rights and approval:** block publishing without verified redistribution rights and editorial approval.
-7. **Security:** no tokens in browser localStorage, HTML, query strings or task logs. CSRF protection, least-privilege OAuth and encrypted credentials.
-8. **End-to-end tests:** confirm arbitrary Page/movie counts, variable episode ranges, upload correctness and acceptance of each schedule by Meta.
-
-## Deployment
-
-Changes are isolated in the draft Pull Request on `feature/ai-fanpage-publisher-v2`. Do not merge to `main` or enable posting until release gates are complete.
+Read [Publisher deployment and verification guide](publisher-deployment.md), then apply the SQL in [publisher-schema.sql](../sql/publisher-schema.sql). Configure .env.example values in server environment. Run npm test and the GitHub Actions workflow before any merge.
