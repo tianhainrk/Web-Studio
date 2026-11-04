@@ -173,6 +173,7 @@ async function auth() {
   $("headerActions").classList.toggle("hidden", !me.authenticated);
   updateDriveConnectionUI();
   if (me.authenticated) {
+    document.dispatchEvent(new Event("pws:authenticated"));
     startBackgroundTransferPolling();
     if (location.hash === "#dramadownloader") {
       switchTab("dramadownloader");
