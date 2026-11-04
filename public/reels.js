@@ -123,6 +123,17 @@ $("loadSeries").onclick=()=>handle(refreshSeries());
 $("loadEpisodes").onclick=()=>handle(refreshEpisodes());
 $("selectAll").onclick=()=>{selection.clear();for(const ep of episodes)selection.set(ep.episode,ep);episodeUI();};
 $("clearAll").onclick=()=>{selection.clear();episodeUI();};
+$("selectRange").onclick=()=>{
+  const from=Number($("episodeFrom").value),to=Number($("episodeTo").value);
+  if(!Number.isInteger(from)||!Number.isInteger(to)||from<1||to<from)return show("Khoảng tập không hợp lệ",true);
+  selection.clear();for(const ep of episodes)if(ep.episode>=from&&ep.episode<=to)selection.set(ep.episode,ep);
+  episodeUI();
+};
+$("loadAudit").onclick=()=>handle((async()=>{
+  const {events}=await api("/audit");const root=$("audit");root.replaceChildren();
+  for(const item of events||[]){const row=el("div",new Date(item.created_at).toLocaleString("vi-VN",{timeZone:zone})+" · "+item.action+" · "+JSON.stringify(item.details||{}),"page");root.append(row);}
+  if(!events?.length)root.textContent="Chưa có nhật ký.";
+})());
 $("create").onclick=()=>handle(createCampaign());
 $("genCaption").onclick=()=>handle(genCaption());
 $("refresh").onclick=()=>handle(refreshAll());
