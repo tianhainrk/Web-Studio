@@ -63,12 +63,25 @@ create index if not exists publisher_posts_campaign_time_idx
 create index if not exists publisher_posts_status_idx
   on public.publisher_posts(status,scheduled_at);
 
+create table if not exists public.publisher_events (
+  id bigint generated always as identity primary key,
+  campaign_id uuid not null references public.publisher_campaigns(id) on delete cascade,
+  post_id uuid references public.publisher_posts(id) on delete cascade,
+  event_name text not null check (char_length(event_name) between 2 and 80),
+  details jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists publisher_events_campaign_idx
+  on public.publisher_events(campaign_id,created_at desc);
+
 alter table public.publisher_credentials enable row level security;
 alter table public.publisher_campaigns enable row level security;
 alter table public.publisher_posts enable row level security;
+alter table public.publisher_events enable row level security;
 
 -- No anon/authenticated policies: only server-side service role may access.
 revoke all on public.publisher_credentials from anon,authenticated;
 revoke all on public.publisher_campaigns from anon,authenticated;
 revoke all on public.publisher_posts from anon,authenticated;
+revoke all on public.publisher_events from anon,authenticated;
 revoke all on all sequences in schema public from anon,authenticated;
