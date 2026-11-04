@@ -18,8 +18,11 @@ async function driveFile(fileId,token){
     throw Error("File không phải MP4");
   return {size:Number(item.size),name:item.name};
 }
-async function driveRange(fileId,token,start,size){
-  const end=Math.min(start+CHUNK,size)-1;
+async function driveRange(fileId,token,start,size,endOffset){
+  const limit=Number.isSafeInteger(Number(endOffset))&&Number(endOffset)>start
+    ?Math.min(Number(endOffset),start+CHUNK,size)
+    :Math.min(start+CHUNK,size);
+  const end=limit-1;
   const url="https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(safeId(fileId))+"?alt=media";
   const res=await fetch(url,{headers:{Authorization:"Bearer "+token,Range:"bytes="+start+"-"+end},
     redirect:"error",signal:AbortSignal.timeout(45000)});
@@ -68,7 +71,7 @@ export async function beginVideoUpload(postId){
   if(!page)throw Error("Page này chưa được Meta xác thực");
   const token=await googleAccessToken();
   const file=await driveFile(existing.drive_file_id,token);
-  const current=await patchPost(postId,{status:"initializing",last_error:null},
+  await patchPost(postId,{status:"initializing",last_error:null},
     {status:"eq.approved"});
   try{
     const response=await graphPost(pageId,await pageToken(pageId),{
@@ -100,7 +103,7 @@ export async function transferOneChunk(postId){
   });
   try{
     const [googleToken,metaToken]=await Promise.all([googleAccessToken(),pageToken(post.page_id)]);
-    const bytes=await driveRange(post.drive_file_id,googleToken,start,size);
+    const bytes=await driveRange(post.drive_file_id,googleToken,start,size,post.end_offset);
     const next=await graphTransfer(post.page_id,metaToken,post.upload_session_id,start,bytes);
     const offset=Number(next.start_offset);
     if(!Number.isSafeInteger(offset)||offset<=start||offset>size)
@@ -111,8 +114,9 @@ export async function transferOneChunk(postId){
     },{status:"eq.transferring",lock_token:"eq."+lock});
     return {done:offset===size,offset,total:size,post:saved};
   }catch(error){
+    // The chunk may have reached Meta despite a timeout; do not automatically resend.
     await patchPost(postId,{
-      status:"failed",lock_token:null,last_error:String(error.message).slice(0,400)
+      status:"needs_reconcile",lock_token:null,last_error:"Chunk có kết quả chưa rõ: "+String(error.message).slice(0,350)
     },{status:"eq.transferring",lock_token:"eq."+lock}).catch(()=>{});
     throw error;
   }
@@ -153,8 +157,8 @@ export async function videoStatus(postId){
   if(!post?.meta_video_id)throw Error("Chưa có Meta Video ID");
   const token=await pageToken(post.page_id);
   const url="https://graph.facebook.com/"+graphVersion+"/"+encodeURIComponent(post.meta_video_id)+
-    "?fields=id,status,permalink_url,created_time,published&access_token="+encodeURIComponent(token);
-  const res=await fetch(url,{redirect:"error",signal:AbortSignal.timeout(25000)});
+    "?fields=id,status,permalink_url,created_time,published";
+  const res=await fetch(url,{headers:{Authorization:"Bearer "+token},redirect:"error",signal:AbortSignal.timeout(25000)});
   const value=await res.json().catch(()=>({}));
   if(!res.ok||value.error)throw Error("Không đối soát được Meta Video: "+String(value.error?.message||res.status));
   let status=post.status;
