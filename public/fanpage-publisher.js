@@ -1,3 +1,4 @@
+import {initPublisherAdmin} from "./fanpage-publisher-admin.js";
 import {driveConnected,listManagedSeriesOnDrive} from "./drive-transfer.js";
 
 const $=id=>document.getElementById(id);
@@ -16,6 +17,7 @@ function status(text,error=false){
 function clearPreview(){
   state.preview=null;
   $("fpExport").disabled=true;
+  $("fpCreateCampaign").disabled=true;
   $("fpSummary").textContent="";
   $("fpPreviewList").replaceChildren();
 }
@@ -48,7 +50,8 @@ function renderAssignments(){
     head.append(remove);card.append(head);
     const first=el("div","","row");
     first.style.cssText="flex-wrap:wrap;gap:10px;align-items:end";
-    field(first,"Page ID (nhập thủ công tạm thời)",input(row,"pageId","Page ID"),"180px");
+    const pageInput=input(row,"pageId","Page ID");pageInput.setAttribute("list","fpKnownPages");
+    field(first,"Page ID (chọn từ Meta hoặc nhập tạm)",pageInput,"180px");
     const select=el("select");select.style.width="100%";
     select.append(new Option("Chọn phim từ Google Drive",""));
     for(const f of state.films)
@@ -95,7 +98,8 @@ function collect(){
       return n>=from&&n<=to&&Number(f.size)>0;
     }).map(f=>({number:Number(f.episode),driveFileId:String(f.id),rightsApproved:item.rightsApproved===true}));
     if(!episodes.length)throw Error("Phân công #"+(index+1)+" chưa có MP4 trong khoảng tập");
-    const out={pageId:item.pageId,seriesId:String(film.id),episodes};
+    const out={pageId:item.pageId,seriesId:String(film.id),
+      movieTitle:String(film.title||film.id),genres:String(film.genres||""),episodes};
     if(item.days!=="")out.days=Number(item.days);
     if(item.dailyLimit!=="")out.dailyLimit=Number(item.dailyLimit);
     return out;
@@ -151,6 +155,7 @@ async function preview(){
     if(!res.ok)throw Error(data.error||"HTTP "+res.status);
     state.preview={config,result:data};
     $("fpExport").disabled=false;
+    $("fpCreateCampaign").disabled=false;
     renderPreview(data);
     status("Đã tạo "+data.total+" bản nháp. Chưa đăng hoặc lên lịch Facebook.");
   }catch(err){status("Lỗi: "+String(err.message||err),true);}
@@ -206,4 +211,5 @@ export function initFanpagePublisher(){
   $("fpRestoreLocal").onclick=restoreLocal;
   for(const element of Object.keys(localIds))$(element).addEventListener("change",clearPreview);
   addAssignment();
+  initPublisherAdmin({getDraft:()=>state.preview?.config||null});
 }
