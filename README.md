@@ -1,5 +1,12 @@
 # PineDrama Web Studio
 
+## Facebook Reels Studio (opt-in feature)
+
+The independent Reels manager is available at `/reels.html` after Vercel deployment and admin sign-in. It adds Meta/Google OAuth, Fanpage selection, Drive episode ranges, campaign scheduling, Gemini caption drafts, encrypted token storage, Supabase audit/duplicate protection and a GitHub Actions worker. No automatic publishing occurs until you configure Supabase, Google OAuth, Meta app permissions and GitHub Actions secrets. MuseAI is only an experimental provider adapter until a supported caption API is verified.
+
+**Setup:** [Facebook Reels Studio deployment guide](docs/facebook-reels-studio.md).
+
+
 Private, standalone browser dashboard for PineDrama metadata and playback, based on the verified AnPinime **feature/ai-drama** provider. The AnPinime repository is read-only and not modified.
 
 ## Included
