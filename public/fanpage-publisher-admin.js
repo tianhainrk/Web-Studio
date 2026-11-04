@@ -169,6 +169,17 @@ function renderPosts(){
         retry.onclick=async()=>{try{await api("upload/retry",{method:"POST",body:{id:post.id,confirm:true}});await reloadCampaign();}catch(e){message(e.message,true);}};
         buttons.append(retry);
       }
+      if(post.status==="scheduled"){
+        const cancel=el("button","Hủy lịch trên Facebook","danger");
+        cancel.onclick=async()=>{
+          if(!window.confirm("Hủy video đã lên lịch trên Facebook? Thao tác này sẽ xóa video tương ứng khỏi Meta."))return;
+          try{
+            await api("upload/cancel",{method:"POST",body:{id:post.id,confirm:true}});
+            await reloadCampaign();message("Meta đã xác nhận hủy lịch.",false,"fpUploadStatus");
+          }catch(e){message(e.message,true,"fpUploadStatus");}
+        };
+        buttons.append(cancel);
+      }
       if(post.meta_video_id){
         const reconcile=el("button","Kiểm tra Meta","detail-secondary");
         reconcile.onclick=async()=>{try{await api("upload/reconcile",{method:"POST",body:{id:post.id}});await reloadCampaign();}catch(e){message(e.message,true);}};
