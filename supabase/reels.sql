@@ -10,3 +10,27 @@ alter table reel_pages enable row level security;
 alter table reel_campaigns enable row level security;
 alter table reel_jobs enable row level security;
 alter table reel_audit enable row level security;
+
+-- Restrict access to server-side service role only.
+revoke all on reel_connections,reel_pages,reel_campaigns,reel_jobs,reel_audit from anon,authenticated;
+create or replace function public.claim_reel_jobs(p_limit integer default 1)
+returns setof public.reel_jobs
+language plpgsql security definer set search_path = public as $$
+begin
+  return query
+  with candidates as (
+    select j.id from public.reel_jobs j
+    join public.reel_campaigns c on c.id=j.campaign_id
+    join public.reel_pages p on p.page_id=j.page_id
+    where j.status='queued' and j.scheduled_at<=now() and c.status='active' and p.active=true
+    order by j.scheduled_at,j.id
+    limit greatest(1,least(p_limit,5))
+    for update of j skip locked
+  ), changed as (
+    update public.reel_jobs j set status='uploading',updated_at=now()
+    where j.id in (select id from candidates)
+    returning j.*
+  ) select * from changed;
+end $$;
+revoke all on function public.claim_reel_jobs(integer) from public,anon,authenticated;
+grant execute on function public.claim_reel_jobs(integer) to service_role;
