@@ -119,6 +119,7 @@
     <nav class="tabs">
       <button class="active" data-tab="catalog">Kho phim (PineDrama)</button>
       <button data-tab="dramadownloader">DramaDownloader → Drive</button>
+      <button data-tab="fanpage">AI Fanpage Publisher</button>
       <button data-tab="manager">Manager (Drive)</button>
       <button data-tab="drive">Google Drive</button>
     </nav>
@@ -215,6 +216,68 @@
           </div>
         </div>
       </details>
+    </section>
+
+    <section id="fanpage" class="hidden">
+      <div class="panel">
+        <h2 style="margin:0 0 8px">AI Fanpage Publisher — Tạo chiến dịch linh hoạt</h2>
+        <p class="muted">Tự chọn số Fanpage, phim từ Google Drive, tập cần đăng, thời gian và nhà cung cấp AI. Đây là bản xem trước; chưa tạo bài đăng Facebook.</p>
+        <div class="row" style="align-items:end;gap:12px;flex-wrap:wrap">
+          <label style="flex:2;min-width:190px">Tên chiến dịch
+            <input id="fpCampaignName" type="text" maxlength="120" placeholder="Ví dụ: Phim ngắn tháng 11" style="width:100%">
+          </label>
+          <label style="flex:1;min-width:130px">AI tạo caption
+            <select id="fpAI" style="width:100%">
+              <option value="gemini">Gemini</option>
+              <option value="muse">MuseAI (khi đã kết nối API)</option>
+            </select>
+          </label>
+          <label style="flex:1;min-width:145px">Phong cách
+            <select id="fpTone" style="width:100%">
+              <option value="natural">Tự nhiên</option>
+              <option value="dramatic">Kịch tính</option>
+              <option value="concise">Ngắn gọn</option>
+            </select>
+          </label>
+        </div>
+        <div class="row" style="margin-top:12px;align-items:end;gap:10px;flex-wrap:wrap">
+          <label>Ngày bắt đầu
+            <input id="fpStartDate" type="date">
+          </label>
+          <label>Số ngày mặc định
+            <input id="fpDays" type="number" min="1" max="90" value="7" style="width:95px">
+          </label>
+          <label>Tập/ngày mặc định
+            <input id="fpDailyLimit" type="number" min="1" max="100" value="12" style="width:105px">
+          </label>
+          <label>Giờ bắt đầu
+            <input id="fpWindowStart" type="time" value="08:00">
+          </label>
+          <label>Giờ kết thúc
+            <input id="fpWindowEnd" type="time" value="22:00">
+          </label>
+          <label>Lệch giữa phân công (phút)
+            <input id="fpStagger" type="number" min="0" max="30" value="3" style="width:95px">
+          </label>
+        </div>
+        <p class="muted" style="font-size:12px;margin:10px 0">Múi giờ: Asia/Ho_Chi_Minh. Có thể thay số ngày, số tập/ngày cho riêng từng cặp Fanpage–phim.</p>
+        <div class="row" style="margin:14px 0;flex-wrap:wrap">
+          <button id="fpLoadDrive" class="detail-secondary">Đọc phim từ Drive</button>
+          <button id="fpAddAssignment" class="primary">+ Thêm Fanpage / bộ phim</button>
+          <button id="fpSaveLocal" class="detail-secondary">Lưu cấu hình trên trình duyệt</button>
+          <button id="fpRestoreLocal" class="detail-secondary">Nạp cấu hình đã lưu</button>
+        </div>
+        <div id="fpDriveStatus" class="muted" role="status"></div>
+        <div id="fpAssignments" style="display:grid;gap:12px;margin:14px 0"></div>
+        <div class="row" style="margin-top:16px;align-items:center">
+          <button id="fpPreview" class="primary">Tạo lịch xem trước</button>
+          <button id="fpExport" class="detail-secondary" disabled>Xuất lịch JSON</button>
+          <span id="fpStatus" class="muted" role="status"></span>
+        </div>
+        <div id="fpSummary" class="statline" style="margin-top:14px"></div>
+        <div id="fpPreviewList" class="manager-list" style="max-height:380px;overflow:auto"></div>
+        <p class="notice" style="margin-top:14px"><small>Chưa tích hợp Facebook Login hoặc API xuất bản. Chỉ dùng video có quyền đăng lại. Không nhập access token hoặc API key vào các ô cấu hình này.</small></p>
+      </div>
     </section>
 
     <section id="detail" class="panel hidden"></section>

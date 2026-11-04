@@ -1,6 +1,7 @@
 import {discoverLibrary, FEEDS} from "../src/library.mjs";
 import {discover, playlist, resolve} from "../src/provider.mjs";
 import {createHmac,timingSafeEqual} from "node:crypto";
+import {buildCampaignSchedule} from "../src/reels/campaign-schedule.mjs";
 import {parseDramaBoxInput,parseDramaBoxPublicHTML} from "../src/dramadownloader-page.mjs";
 import {
   DRAMABOX_FEEDS,
@@ -335,6 +336,33 @@ export default async function handler(req,res){
         accessToken
       });
       return send(res,200,{ok:true,episode:ep.number,size:uploaded.size,file:uploaded.file});
+    }
+
+    // Dynamic multi-Page campaign preview. Validates Drive file IDs and schedule only.
+    // No provider token or Meta operation is accepted by this endpoint.
+    if(p==="/reels/preview"&&req.method==="POST"){
+      try{
+        const config=await input(req);
+        const posts=buildCampaignSchedule(config);
+        const counts=new Map();
+        for(const post of posts){
+          const key=post.pageId+":"+post.seriesId;
+          counts.set(key,(counts.get(key)||0)+1);
+        }
+        return send(res,200,{
+          ok:true,timezone:"Asia/Ho_Chi_Minh",
+          total:posts.length,
+          assignments:[...counts].map(([key,count])=>({
+            pageId:key.split(":")[0],seriesId:key.split(":").slice(1).join(":"),count
+          })),
+          rightsPending:posts.filter(p=>!p.rightsApproved).length,
+          items:posts,
+          status:"draft_only",
+          note:"Đây chỉ là bản xem trước. Chưa đăng lên Facebook hoặc lưu lịch trên máy chủ."
+        });
+      }catch(error){
+        return send(res,400,{error:String(error?.message||error).slice(0,250)});
+      }
     }
 
     // ==================== BACKGROUND TRANSFER QUEUE (SURVIVES PAGE EXIT) ====================
