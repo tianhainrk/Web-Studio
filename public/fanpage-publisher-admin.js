@@ -263,5 +263,7 @@ export function initPublisherAdmin({getDraft}){
     message("Đã quay lại từ OAuth. Kiểm tra trạng thái kết nối.");
     history.replaceState({},document.title,location.pathname);
   }
-  run(async()=>{await refreshConnections();await refreshCampaignList();});
+  document.addEventListener("pws:authenticated",()=>run(async()=>{
+    await refreshConnections();await refreshCampaignList();
+  }));
 }
