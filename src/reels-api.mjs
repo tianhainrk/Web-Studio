@@ -1,4 +1,5 @@
-import {prepareMuse,parsePlanItems,validateMuseReply,validateApprovedPlan,requestMusePlan,requestGeminiPlan,musePrompt,planSpecification} from "./muse-planner.mjs";
+import {balancedCounts,validateBalancedSchedule,balancedSchedule} from "./reels-planning.mjs";
+import {prepareMuse,parsePlanItems,validateMuseReply,validateGoldenMuseReply,validateApprovedPlan,requestMusePlan,requestGeminiPlan,musePrompt,planSpecification} from "./muse-planner.mjs";
 import {oauthState,verifyOauthState,encryptToken,db,audit,clientConfig,fetchJSON,getGoogleAccessToken,driveSeries,driveEpisodes,scheduleEpisodes,validId,requiredConfig} from "./reels-core.mjs";
 const graph="https://graph.facebook.com/v26.0";
 const permittedScopes="pages_show_list,pages_read_engagement,pages_manage_posts";
@@ -204,13 +205,23 @@ export async function reelsRoute(req,res,path){
       for(const item of items){
         const number=Number(item.episode);
         if(!entries.has(number)||seen.has(number)||number<=previous)return fail(res,400,"JSON có tập ngoài danh sách, trùng hoặc không tăng dần");
-        if(request.museReadDrive===true&&(!String(item.summary||"").trim()||!String(item.evidence||"").trim()))
-          return fail(res,400,"Tập "+number+" thiếu summary/evidence cho việc xem video. Không xác nhận caption dựa trên video nếu chưa có bằng chứng.");
+        // summary/evidence are optional. The source of video-grounded captions is the connected Muse session.
         seen.add(number);previous=number;
         matching.push(entries.get(number));
       }
-      const plan=validateMuseReply(String(request.reply||""),matching);
-      return json(res,200,{plan,entries:matching,provider:"muse_connected_drive",status:"draft",received:plan.length,total:prepared.batch.length});
+      let plan,adjusted=0;
+      if(request.aiSchedule===true){
+        // Validate dates/episode membership across the WHOLE selection. For partial
+        // JSONs fill gaps with baseline slots, then return only uploaded episodes.
+        const byEp=new Map(items.map(x=>[Number(x.episode),x]));
+        const padded=prepared.batch.map(ref=>byEp.get(ref.episode)||{
+          episode:ref.episode,scheduledAt:ref.scheduledAt,caption:"Chưa tạo caption"
+        });
+        const normalized=validateGoldenMuseReply(JSON.stringify({items:padded}),prepared.batch,{startDate:request.startDate});
+        plan=normalized.plan.filter(x=>seen.has(x.episode));
+        adjusted=plan.filter((x,i)=>x.scheduledAt!==items[i].scheduledAt).length;
+      }else plan=validateMuseReply(String(request.reply||""),matching);
+      return json(res,200,{plan,entries:matching,provider:"muse_connected_drive",status:"draft",received:plan.length,total:prepared.batch.length,adjusted});
     }
     if(path==="/gemini/generate"&&method==="POST"){
       const request=await body(req);
@@ -220,12 +231,18 @@ export async function reelsRoute(req,res,path){
       return json(res,200,{plan,entries:prepared.batch,provider:"gemini",status:"draft"});
     }
     if(path==="/campaigns"&&method==="GET"){
-      const campaigns=await db("reel_campaigns?select=id,name,page_id,folder_id,start_at,per_day,spacing_minutes,status,created_at&order=created_at.desc&limit=100");
+      const pageId=url.searchParams.get("pageId")||"";
+      if(pageId&&!/^\d+$/.test(pageId))return fail(res,400,"Page ID không hợp lệ");
+      const campaigns=await db("reel_campaigns?"+(pageId?"page_id=eq."+pageId+"&":"")+"select=id,name,page_id,folder_id,start_at,per_day,spacing_minutes,status,created_at&order=created_at.desc&limit=300");
       return json(res,200,{campaigns});
     }
     if(path==="/jobs"&&method==="GET"){
-      const jobs=await db("reel_jobs?select=id,campaign_id,page_id,episode,file_id,filename,caption,scheduled_at,status,meta_video_id,error,updated_at&order=scheduled_at.asc&limit=400");
-      return json(res,200,{jobs});
+      const pageId=url.searchParams.get("pageId")||"";
+      if(pageId&&!/^\d+$/.test(pageId))return fail(res,400,"Page ID không hợp lệ");
+      const offset=Math.max(0,Math.min(20000,Number(url.searchParams.get("offset"))||0));
+      const limit=Math.max(1,Math.min(1000,Number(url.searchParams.get("limit"))||400));
+      const jobs=await db("reel_jobs?"+(pageId?"page_id=eq."+pageId+"&":"")+"select=id,campaign_id,page_id,episode,file_id,filename,caption,scheduled_at,status,meta_video_id,error,updated_at&order=scheduled_at.asc&limit="+limit+"&offset="+offset);
+      return json(res,200,{jobs,offset,hasMore:jobs.length===limit});
     }
     if(path==="/campaigns/create"&&method==="POST"){
       const b=await body(req);
@@ -239,17 +256,35 @@ export async function reelsRoute(req,res,path){
       const chosen=selection.map(n=>available.find(e=>e.episode===n));
       if(chosen.some(x=>!x))return fail(res,400,"Có tập không tồn tại trong Drive");
       const approved=Array.isArray(b.plan)?validateApprovedPlan(b.plan,selection):null;
+      if(b.aiSchedule===true&&!approved)return fail(res,400,"Chiến dịch AI cần duyệt đủ caption và lịch");
+      if(b.aiSchedule===true)validateBalancedSchedule(approved,b.startDate);
       const times=approved?approved.map(x=>x.scheduledAt):scheduleEpisodes({startDate:b.startDate,time:b.time,perDay:b.perDay,spacingMinutes:b.spacingMinutes,count:chosen.length});
       if(Date.parse(times[0])<Date.now()+60000)return fail(res,400,"Ngày đăng đầu tiên cần cách hiện tại ít nhất 1 phút");
       const caption=String(b.caption||"").trim();
       if(!approved&&caption.length>2200)return fail(res,400,"Caption không được vượt 2200 ký tự");
-      const campaigns=await db("reel_campaigns",{method:"POST",prefer:"return=representation",body:{name:b.name.trim(),page_id:pageId,folder_id:folderId,start_at:times[0],per_day:Number(b.perDay),spacing_minutes:Number(b.spacingMinutes),status:"active"}});
+      const campaigns=await db("reel_campaigns",{method:"POST",prefer:"return=representation",body:{name:b.name.trim(),page_id:pageId,folder_id:folderId,start_at:times[0],per_day:b.aiSchedule===true?balancedCounts(chosen.length)[0]:Number(b.perDay),spacing_minutes:b.aiSchedule===true?15:Number(b.spacingMinutes),status:"active"}});
       const campaign=campaigns?.[0];if(!campaign?.id)throw Error("Không thể lưu chiến dịch");
       const jobs=chosen.map((e,i)=>({campaign_id:campaign.id,page_id:pageId,folder_id:folderId,file_id:e.id,filename:e.name,episode:e.episode,scheduled_at:times[i],caption:approved?approved[i].caption:caption.replace(/\{episode\}/g,String(e.episode)),status:"queued"}));
       try{await db("reel_jobs",{method:"POST",prefer:"return=minimal",body:jobs});}
       catch(e){await db("reel_campaigns?id=eq."+campaign.id,{method:"DELETE"});throw e;}
       await audit("campaign_created",{campaignId:campaign.id,episodes:jobs.length,pageId},null);
       return json(res,201,{ok:true,id:campaign.id,count:jobs.length});
+    }
+    if(path==="/jobs/update"&&method==="POST"){
+      const reqBody=await body(req);
+      const id=String(reqBody.id||"");
+      if(!/^[0-9a-f-]{36}$/i.test(id))return fail(res,400,"ID bài đăng không hợp lệ");
+      const old=(await db("reel_jobs?id=eq."+id+"&select=id,status,scheduled_at,caption,episode,page_id&limit=1"))?.[0];
+      if(!old)return fail(res,404,"Bài đăng không tồn tại");
+      if(old.status!=="queued")return fail(res,409,"Chỉ sửa bài chưa bắt đầu đăng");
+      const caption=String(reqBody.caption||"").trim(),iso=String(reqBody.scheduledAt||"");
+      if(!caption||caption.length>2200)return fail(res,400,"Caption cần từ 1 đến 2200 ký tự");
+      if(!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?(?:Z|[+-]\d\d:\d\d)$/.test(iso)||!Number.isFinite(Date.parse(iso))||Date.parse(iso)<=Date.now()+60000)
+        return fail(res,400,"Giờ đăng phải trong tương lai và có múi giờ");
+      const updated=await db("reel_jobs?id=eq."+id+"&status=eq.queued",{method:"PATCH",prefer:"return=representation",body:{caption,scheduled_at:new Date(iso).toISOString(),updated_at:new Date().toISOString()}});
+      if(!updated?.length)return fail(res,409,"Bài đăng đã bắt đầu xử lý");
+      await audit("job_updated",{jobId:id,episode:old.episode,pageId:old.page_id},id);
+      return json(res,200,{ok:true,job:updated[0]});
     }
     if(path==="/jobs/cancel"&&method==="POST"){
       const b=await body(req);

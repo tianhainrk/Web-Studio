@@ -18,6 +18,7 @@ jobs:
         run: |
           node --check src/reels-core.mjs
           node --check src/muse-planner.mjs
+          node --check src/reels-planning.mjs
           node --check src/gemini-video.mjs
           node --check scripts/gemini-video-worker.mjs
           node --check src/reels-api.mjs

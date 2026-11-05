@@ -28,21 +28,17 @@ test("video caption must include text and grounded summary",()=>{
   assert.throws(()=>validateVideoCaption("{}"));
   assert.throws(()=>validateVideoCaption("not JSON"));
 });
-test("UI exposes one-button video queue, restore and compact Excel layout",()=>{
+test("video analysis worker remains intentionally paused, while Muse controls captions and schedule",()=>{
   const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
   const client=readFileSync(new URL("../public/reels.js",import.meta.url),"utf8");
   const api=readFileSync(new URL("../src/reels-api.mjs",import.meta.url),"utf8");
-  const sql=readFileSync(new URL("../supabase/gemini-video.sql",import.meta.url),"utf8");
+  const workflow=readFileSync(new URL("../.github/workflows/gemini-video-worker.yml",import.meta.url),"utf8");
   assert.match(html,/id="captionSource"/);
   assert.match(html,/option value="connected_drive" selected/);
-  assert.match(html,/anpi-sheet/);
-  assert.match(client,/async function startVideoBatch/);
-  assert.match(client,/api\("\/ai\/video\/start"/);
-  assert.match(client,/async function restoreVideoBatch/);
+  assert.match(html,/id="rdComposer"/);
   assert.match(client,/function renderDrafts/);
   assert.match(api,/from "\.\/muse-planner\.mjs";/);
-  assert.match(api,/requestGeminiPlan\(prompt,prepared\.batch\)/);
-  assert.match(api,/\/ai\/video\/status/);
-  assert.match(sql,/claim_reel_ai_item/);
-  assert.match(sql,/enable row level security/);
+  assert.match(api,/\/ai\/video\/cancel/);
+  assert.doesNotMatch(workflow,/cron:/);
+  assert.match(workflow,/ENABLE_GEMINI_VIDEO_WORKER/);
 });
