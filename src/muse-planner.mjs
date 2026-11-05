@@ -56,7 +56,7 @@ export function validateMuseReply(raw,batch){
     const row=rows[i];
     if(!row||Number(row.episode)!==ref.episode)throw Error("Muse trả sai thứ tự hoặc số tập");
     const iso=String(row.scheduledAt||"");
-    if(!/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$/.test(iso))throw Error("Muse trả sai định dạng giờ ISO");
+    if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(iso))throw Error("Muse trả sai định dạng giờ ISO");
     const actual=Date.parse(iso),base=Date.parse(ref.scheduledAt);
     const vnDate=t=>new Date(t+7*3600000).toISOString().slice(0,10);
     if(!Number.isFinite(actual)||Math.abs(actual-base)>90*60000||vnDate(actual)!==vnDate(base))
