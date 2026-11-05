@@ -51,3 +51,10 @@ test("all-episode review supports 10/10 and manual JSON",()=>{
   assert.match(reels,/while\(offset>=0\)/);
   assert.match(reels,/function planReview\(/);
 });
+
+test("full 10-episode Muse JSON is sent with its actual batch limit",()=>{
+  assert.match(reels,/function getInputs\(offset=0,limit=8\)/);
+  assert.match(reels,/getInputs\(start,rows\.length\)/);
+  assert.match(reels,/instructions:\$\("museInstructions"\)\.value,offset,limit/);
+  assert.match(html,/anpi-summary-stat/);
+});
