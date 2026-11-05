@@ -54,7 +54,7 @@ test("Muse single instruction requires gold-hour planning, no summary/evidence, 
   });
   assert.match(prompt,/Anpi Page/);
   assert.match(prompt,/71 video/);
-  assert.match(prompt,/tối thiểu 10 tập/i);
+  assert.match(prompt,/mỗi ngày ít nhất 10 tập/i);
   assert.match(prompt,/giờ vàng/i);
   assert.match(prompt,/không bịa số liệu/i);
   assert.match(prompt,/Không cần summary hoặc evidence/i);
