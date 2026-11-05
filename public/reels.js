@@ -106,37 +106,61 @@ function toUTC(value){
   if(!Number.isFinite(d.getTime()))throw Error("Giờ Việt Nam không hợp lệ");
   return d.toISOString();
 }
+function planReview(){
+  const nums=[...selection.keys()].sort((a,b)=>a-b);
+  const missing=nums.filter(n=>!drafts.has(n));
+  const invalid=nums.filter(n=>drafts.has(n)&&(!String(drafts.get(n).caption||"").trim()||String(drafts.get(n).caption).length>2200||!Number.isFinite(Date.parse(drafts.get(n).scheduledAt))));
+  const dates=nums.map(n=>drafts.get(n)?.scheduledAt).filter(Boolean);
+  const ordered=dates.every((d,i)=>i===0||Date.parse(d)>Date.parse(dates[i-1]));
+  return {nums,missing,invalid,ordered,ready:nums.length>0&&!missing.length&&!invalid.length&&ordered&&!(draftFingerprint&&draftFingerprint!==signature())};
+}
 function renderDrafts(){
-  const root=$("musePreview"),info=$("museDraftCount"),save=$("create"),summary=$("reviewSummary"),hint=$("reviewHint");
+  const root=$("musePreview"),info=$("museDraftCount"),save=$("create");
   if(!root||!info||!save)return;
-  root.replaceChildren();summary.replaceChildren();
-  const nums=[...selection.keys()].sort((a,b)=>a-b),ready=nums.filter(n=>drafts.has(n)).length,missing=nums.length-ready;
-  for(const [label,value] of [["Tổng tập",nums.length],["Đã có caption",ready],["Chưa xử lý",missing]]){
-    const tile=el("div","","anpi-review-metric");tile.append(el("span",label),el("strong",String(value)));summary.append(tile);
+  const state=planReview();
+  save.disabled=generating||!state.ready;
+  info.textContent="Đã tạo "+(state.nums.length-state.missing.length)+"/"+state.nums.length+" tập"+(state.missing.length?". Còn thiếu: "+state.missing.map(n=>"EP"+n).join(", "):". Đã đủ số tập.");
+  const hint=$("reviewHint");
+  if(hint)hint.textContent=state.missing.length?"Thiếu "+state.missing.length+" tập — "+state.missing.map(n=>"EP"+n).join(", "):
+    state.invalid.length?"Caption hoặc ngày giờ chưa hợp lệ tại EP"+state.invalid.join(", EP"):
+    !state.ordered?"Lịch đăng chưa tăng dần theo thứ tự tập":state.ready?"Đã đủ, có thể duyệt và lưu chiến dịch":"Bạn cần tạo caption trước khi duyệt";
+  const summary=$("reviewSummary");
+  if(summary){
+    summary.replaceChildren();
+    for(const [value,label] of [[state.nums.length,"Tập đã chọn"],[state.nums.length-state.missing.length,"Đã có caption"],[state.missing.length,"Tập còn thiếu"]]){
+      const card=el("div","","anpi-summary-stat");
+      card.append(el("strong",String(value)),el("small",label));summary.append(card);
+    }
   }
-  info.textContent=nums.length?(ready+"/"+nums.length+" tập có bản nháp. "+(missing?"Còn "+missing+" tập chưa xử lý.":"Đã đủ các tập để duyệt.")):"Chọn các tập ở bước 2 để bắt đầu.";
-  const fresh=!draftFingerprint||draftFingerprint===signature();
-  const hasPage=!!$("pageSelect").value,hasName=$("campaign").value.trim().length>=3;
-  save.disabled=!nums.length||!!missing||!fresh||!hasPage||!hasName;
-  hint.textContent=missing?"Thiếu "+missing+" tập":!hasPage?"Chọn Fanpage":!hasName?"Đặt tên chiến dịch":!fresh?"Thông tin đã đổi, cần tạo lại bản nháp":"Đã đủ tập, sẵn sàng duyệt";
-  for(const number of nums){
-    const item=drafts.get(number),wrap=el("article","","anpi-plan-item"+(item?"":" missing"));
-    const header=el("div","","anpi-plan-header"),file=selection.get(number);
-    header.append(el("strong","Tập "+number,"anpi-ep-number"),el("span",item?"Đã chuẩn bị":"Chưa tạo","pill"));
-    wrap.append(header,el("div",file?.name||("EP"+String(number).padStart(3,"0")+".mp4"),"muted"));
-    if(item){
-      const whenLabel=el("label","Ngày và giờ đăng (VN)","field"),when=el("input");
-      when.type="datetime-local";when.value=vLocal(item.scheduledAt);
-      when.onchange=()=>{try{item.scheduledAt=toUTC(when.value);show("Đã sửa giờ tập "+number);}catch(e){show(e.message,true);}};
-      whenLabel.append(when);
-      const captionLabel=el("label","Caption tập "+number,"field"),area=el("textarea"),counter=el("span",item.caption.length+"/2200 ký tự","muted");
-      area.maxLength=2200;area.value=item.caption;area.oninput=()=>{item.caption=area.value;counter.textContent=area.value.length+"/2200 ký tự";};
-      captionLabel.append(area);wrap.append(whenLabel,captionLabel,counter);
-    }else wrap.append(el("p","AI sẽ tạo caption và lịch trong lượt tiếp theo.","muted"));
-    root.append(wrap);
+  root.replaceChildren();
+  for(const number of state.nums){
+    const item=drafts.get(number),wrap=el("div","","anpi-plan-item");
+    const header=el("div","","anpi-plan-header");
+    header.append(el("strong","TẬP "+String(number).padStart(3,"0"),"episode-head"));
+    header.append(el("span",item?"Đã có caption":"Chờ tạo","status"));
+    wrap.append(header);
+    if(!item){
+      wrap.append(el("p","Chưa có caption. Nhấn Tạo caption và lịch để xử lý các tập còn thiếu.","muted"));
+      root.append(wrap);continue;
+    }
+    const when=el("input");when.type="datetime-local";when.value=new Date(Date.parse(item.scheduledAt)+7*3600000).toISOString().slice(0,16);
+    when.onchange=()=>{try{
+      const date=new Date(when.value+":00+07:00");
+      if(!Number.isFinite(date.getTime()))throw Error("Giờ đăng không hợp lệ");
+      item.scheduledAt=date.toISOString();renderDrafts();
+    }catch(e){show(e.message,true);}};
+    const label=el("label","Giờ đăng (Việt Nam)"),captionLabel=el("label","Caption tập "+number);
+    const area=el("textarea");area.value=item.caption;area.maxLength=2200;
+    const meta=el("div",item.caption.length+"/2200 ký tự","caption-meta");
+    area.oninput=()=>{
+      item.caption=area.value;meta.textContent=area.value.length+"/2200 ký tự";
+      const review=planReview();save.disabled=generating||!review.ready;
+      if(hint)hint.textContent=review.ready?"Đã đủ, có thể duyệt và lưu chiến dịch":"Kiểm tra caption và lịch trước khi lưu";
+    };
+    wrap.append(label,when,captionLabel,area,meta);root.append(wrap);
   }
 }
-async function prepareBatch(){
+async function prepareBatch(all=false){
   if(!selection.size||!$("series").value)return show("Bạn cần chọn phim và tập từ Drive trước.",true);
   checkFreshness();
   const offset=pendingOffset();
@@ -209,7 +233,8 @@ async function createCampaign(){
   const input=getInputs();
   const plan=input.episodes.map(n=>drafts.get(n));
   if(!input.pageId||!input.folderId||!input.episodes.length)return show("Cần chọn Fanpage, phim và ít nhất một tập.",true);
-  if(plan.some(x=>!x))return show("Muse chưa tạo đủ bản nháp cho toàn bộ tập.",true);
+  const review=planReview();
+  if(!review.ready)return show("Chưa thể duyệt: "+(review.missing.length?"thiếu "+review.missing.map(n=>"EP"+n).join(", "):"caption hoặc lịch đăng chưa hợp lệ"),true);
   if(!confirm("Duyệt "+plan.length+" tập để lưu lịch đăng trên Fanpage? AI chỉ lập bản nháp, worker xử lý khi đến lịch."))return;
   const data=await api("/campaigns/create",{...input,plan});
   show("Đã lưu chiến dịch "+data.count+" tập vào Supabase.");
