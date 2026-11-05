@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {planSpecification,musePrompt,validateMuseReply,validateApprovedPlan,validateSelection,gatewayEndpoint} from "../src/muse-planner.mjs";
+import {planSpecification,musePrompt,validateMuseReply,validateApprovedPlan,validateSelection,gatewayEndpoint,parsePlanItems,geminiPlanRequest} from "../src/muse-planner.mjs";
 
 const episodes=[1,2,3,4,5,6,7,8,9];
 const prepared={
@@ -53,6 +53,23 @@ test("Muse gateway rejects malformed or internal URLs",()=>{
 });
 test("cannot exceed Muse batch limits or accept duplicate episodes",()=>{
   assert.throws(()=>validateSelection([1,1]));
-  assert.throws(()=>planSpecification({...prepared,offset:0,limit:51}));
+  assert.doesNotThrow(()=>planSpecification({...prepared,offset:0,limit:9}));
+  assert.throws(()=>planSpecification({...prepared,offset:0,limit:301}));
   assert.throws(()=>planSpecification({...prepared,offset:9,limit:1}));
+});
+
+test("full ten-episode Muse JSON can be validated in a single import",()=>{
+  const full={...prepared,episodes:[1,2,3,4,5,6,7,8,9,10]};
+  const s=planSpecification({...full,offset:0,limit:10});
+  const batch=s.all.map((episode,i)=>({episode,filename:"EP"+String(episode).padStart(3,"0")+".mp4",scheduledAt:s.slots[i]}));
+  const items=batch.map(x=>({episode:x.episode,scheduledAt:x.scheduledAt,caption:"Phim tập "+x.episode+" – chờ xem diễn biến tiếp theo."}));
+  assert.equal(parsePlanItems(JSON.stringify({items})).length,10);
+  assert.equal(validateMuseReply(JSON.stringify({items}),batch).length,10);
+  assert.equal(validateMuseReply(JSON.stringify({items:items.slice(8)}),batch.slice(8)).length,2);
+});
+test("Gemini request demands structured JSON for per-episode data",()=>{
+  const request=geminiPlanRequest("Hãy tạo caption cho tập 1");
+  assert.equal(request.generationConfig.responseMimeType,"application/json");
+  assert.deepEqual(request.generationConfig.responseSchema.properties.items.items.required,["episode","scheduledAt","caption"]);
+  assert.match(request.contents[0].parts[0].text,/caption/);
 });
