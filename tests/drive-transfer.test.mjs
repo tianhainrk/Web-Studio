@@ -4,7 +4,9 @@ import {
   validateLicensedManifest,
   selectEpisodesForTransfer,
   formatEpisodeFileName,
-  parseEpisodeFileName
+  parseEpisodeFileName,
+  shouldUseBackgroundServer,
+  backgroundJobId
 } from "../public/drive-transfer.js";
 
 const urls = Array.from({ length: 3 }, (_, i) => ({
@@ -85,4 +87,17 @@ test("episode file naming and parsing follow EPxxx.mp4 convention", () => {
   assert.equal(parseEpisodeFileName("EP025.mp4"), 25);
   assert.equal(parseEpisodeFileName("EP120.mp4"), 120);
   assert.equal(parseEpisodeFileName("movie.json"), null);
+});
+
+test("default Drive upload never starts detached server jobs on Vercel",()=>{
+  assert.equal(shouldUseBackgroundServer(),false);
+  assert.equal(shouldUseBackgroundServer({}),false);
+  assert.equal(shouldUseBackgroundServer({useBackgroundServer:false}),false);
+  assert.equal(shouldUseBackgroundServer({useBackgroundServer:true}),true);
+});
+test("background response must contain the backend jobId (not id)",()=>{
+  assert.equal(backgroundJobId({job:{jobId:"job_pinedrama_123_456"}}),"job_pinedrama_123_456");
+  assert.equal(backgroundJobId({job:{id:"job_pinedrama_123_456"}}),null);
+  assert.equal(backgroundJobId({job:{jobId:"unknown"}}),null);
+  assert.equal(backgroundJobId({}),null);
 });

@@ -558,7 +558,7 @@ export async function cancelServerTransferJob(jobId) {
     method: "POST",
     credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: jobId })
+    body: JSON.stringify({ jobId })
   });
   if (!res.ok) return null;
   const data = await res.json().catch(() => ({}));
@@ -585,7 +585,7 @@ export async function attachToBackgroundTransferJob(jobId, options = {}, onStatu
       if (signal?.aborted) {
         throw Error("Đã dừng tải theo yêu cầu người dùng");
       }
-      const res = await fetch(`/api/transfer/status?id=${encodeURIComponent(jobId)}`, {
+      const res = await fetch(`/api/transfer/status?jobId=${encodeURIComponent(jobId)}`, {
         credentials: "same-origin"
       });
       if (!res.ok) {
@@ -597,11 +597,11 @@ export async function attachToBackgroundTransferJob(jobId, options = {}, onStatu
       lastJob = job;
 
       onStatus({
-        jobId: job.id,
+        jobId: job.jobId,
         episode: job.currentEpisode || 1,
         index: job.currentIndex || 0,
         total: job.totalSelected || 1,
-        percent: job.currentPercent || 0,
+        percent: job.episodePercent || 0,
         phase: job.phase || job.status,
         folderId: job.folderId,
         folderUrl: job.folderUrl,
@@ -622,7 +622,7 @@ export async function attachToBackgroundTransferJob(jobId, options = {}, onStatu
       if (job.status === "cancelled") {
         throw Error(job.error || "Đã dừng tải theo yêu cầu người dùng");
       }
-      if (job.status === "failed") {
+      if (job.status === "failed" || job.status === "error") {
         throw Error(job.error || "Lỗi khi tải tập phim lên Google Drive");
       }
 
@@ -636,10 +636,19 @@ export async function attachToBackgroundTransferJob(jobId, options = {}, onStatu
 }
 
 /**
- * Direct transfer of PineDrama or DramaBox series episodes into Google Drive folder PineDrama-Library/<series.id>/
- * Uses server-side detached background transfer (/api/transfer/start) by default so uploads continue even if
- * the user closes the browser tab or navigates away ("duy trì tải video lên driver khi thoát khỏi trang web").
+ * Direct transfer of PineDrama or DramaBox episodes into Google Drive.
+ * Browser-driven upload is the default: Vercel serverless does not guarantee that
+ * detached server jobs survive the HTTP response. Keep this tab open until done.
+ * Only a separately deployed persistent worker may opt into useBackgroundServer:true.
  */
+export function shouldUseBackgroundServer(options = {}) {
+  return options.useBackgroundServer === true;
+}
+
+export function backgroundJobId(payload) {
+  const value = payload?.job?.jobId;
+  return typeof value === "string" && /^job_[a-z0-9_-]+$/i.test(value) ? value : null;
+}
 export async function uploadSeriesEpisodesToDrive(series, episodes, options = {}, onStatus = () => {}) {
   auth();
   const selected = selectEpisodesForTransfer(episodes, options);
@@ -647,8 +656,9 @@ export async function uploadSeriesEpisodesToDrive(series, episodes, options = {}
   const signal = options.signal || null;
   const source = inferSourceById(series.id, series.source || series.platform);
 
-  // Try starting detached server-side transfer job first so uploads survive tab/page exit
-  if (options.useBackgroundServer !== false) {
+  // Explicit opt-in only. NEVER switch to a second upload after starting
+  // a server job: the server may already be uploading even if response fails.
+  if (shouldUseBackgroundServer(options)) {
     const startRes = await fetch("/api/transfer/start", {
       method: "POST",
       credentials: "same-origin",
@@ -676,17 +686,19 @@ export async function uploadSeriesEpisodesToDrive(series, episodes, options = {}
           skipExisting
         }
       })
-    }).catch(() => null);
-
-    if (startRes && startRes.ok) {
-      const startData = await startRes.json().catch(() => ({}));
-      if (startData.job?.id) {
-        return attachToBackgroundTransferJob(startData.job.id, { signal }, onStatus);
-      }
+    });
+    if (!startRes.ok) {
+      throw Error("Không thể khởi động tải nền (HTTP " + startRes.status + "). Kiểm tra tác vụ server trước khi thử lại.");
     }
+    const startData = await startRes.json().catch(() => ({}));
+    const jobId = backgroundJobId(startData);
+    if (!jobId) {
+      throw Error("Server đã nhận yêu cầu nhưng thiếu jobId. Không tự tải lần hai để tránh trùng phim.");
+    }
+    return attachToBackgroundTransferJob(jobId, { signal }, onStatus);
   }
 
-  // Fallback to client-orchestrated upload if server background endpoint is unavailable
+  // Default: one browser-orchestrated upload, no detached job spawned.
   const folderId = await ensureSeriesFolder(series);
   const existingChildren = await listAllChildrenInFolder(folderId);
   const existingMap = new Map();
