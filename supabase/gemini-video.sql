@@ -5,6 +5,7 @@ create table if not exists public.reel_ai_batches (
   folder_id text not null,
   title text not null,
   instructions text not null default '',
+  settings jsonb not null default '{}'::jsonb,
   total integer not null check (total between 1 and 300),
   status text not null default 'queued' check (status in ('queued','running','completed','partial','cancelled')),
   error text,
