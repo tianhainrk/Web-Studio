@@ -111,6 +111,16 @@ export async function reelsRoute(req,res,path){
       const request=await body(req);const prepared=await prepareMuse(request);
       return json(res,200,{prompt:prepared.prompt,entries:prepared.batch,total:prepared.spec.all.length});
     }
+    if(path==="/ai/generate"&&method==="POST"){
+      const request=await body(req);
+      const provider=String(request.provider||"gemini");
+      if(!["gemini","muse"].includes(provider))return fail(res,400,"AI provider không hợp lệ");
+      const prepared=await prepareMuse(request);
+      const prompt=musePrompt(prepared.spec.name,prepared.batch,prepared.spec.instructions,provider==="gemini"?"Gemini":"Muse");
+      const plan=provider==="gemini"?await requestGeminiPlan(prompt,prepared.batch):await requestMusePlan(prompt,prepared.batch);
+      await audit("ai_plan_drafted",{episodes:plan.map(x=>x.episode),provider});
+      return json(res,200,{plan,provider,status:"draft"});
+    }
     if(path==="/muse/generate"&&method==="POST"){
       const request=await body(req);const prepared=await prepareMuse(request);
       const plan=await requestMusePlan(prepared.prompt,prepared.batch);
