@@ -88,6 +88,8 @@ function signature(){
 }
 function resetPlan(){
   drafts.clear();draftFingerprint="";currentBatch=null;
+  videoStatuses.clear();videoBatchId=null;
+  if(videoRefreshTimer){clearInterval(videoRefreshTimer);videoRefreshTimer=null;}
   const p=$("musePrompt"),r=$("museReply");if(p)p.value="";if(r)r.value="";
   renderDrafts();
 }
@@ -114,58 +116,79 @@ function planReview(){
   const ordered=dates.every((d,i)=>i===0||Date.parse(d)>Date.parse(dates[i-1]));
   return {nums,missing,invalid,ordered,ready:nums.length>0&&!missing.length&&!invalid.length&&ordered&&!(draftFingerprint&&draftFingerprint!==signature())};
 }
+let videoBatchId=null,videoRefreshTimer=null;
+const videoStatuses=new Map();
 function renderDrafts(){
   const root=$("musePreview"),info=$("museDraftCount"),save=$("create");
   if(!root||!info||!save)return;
+  const scrolledY=root.scrollTop,scrolledX=root.scrollLeft;
   const state=planReview();
   save.disabled=generating||!state.ready;
-  info.textContent="Đã tạo "+(state.nums.length-state.missing.length)+"/"+state.nums.length+" tập"+(state.missing.length?". Còn thiếu: "+state.missing.map(n=>"EP"+n).join(", "):". Đã đủ số tập.");
+  info.textContent="Đã có "+(state.nums.length-state.missing.length)+"/"+state.nums.length+" caption."
+    +(state.missing.length?" Còn "+state.missing.length+" tập chưa xong.":"");
   const hint=$("reviewHint");
-  if(hint)hint.textContent=state.missing.length?"Thiếu "+state.missing.length+" tập — "+state.missing.map(n=>"EP"+n).join(", "):
+  if(hint)hint.textContent=state.missing.length?"Thiếu "+state.missing.length+" tập: "+
+    state.missing.slice(0,8).map(n=>"EP"+n).join(", ")+(state.missing.length>8?"...":""):
     state.invalid.length?"Caption hoặc ngày giờ chưa hợp lệ tại EP"+state.invalid.join(", EP"):
-    !state.ordered?"Lịch đăng chưa tăng dần theo thứ tự tập":state.ready?"Đã đủ, có thể duyệt và lưu chiến dịch":"Bạn cần tạo caption trước khi duyệt";
+    !state.ordered?"Lịch chưa tăng dần theo thứ tự tập":
+    state.ready?"Đã đủ, có thể duyệt và lưu chiến dịch":"Chưa thể duyệt chiến dịch";
   const summary=$("reviewSummary");
   if(summary){
     summary.replaceChildren();
-    for(const [value,label] of [[state.nums.length,"Tập đã chọn"],[state.nums.length-state.missing.length,"Đã có caption"],[state.missing.length,"Tập còn thiếu"]]){
-      const card=el("div","","anpi-summary-stat");
-      card.append(el("strong",String(value)),el("small",label));summary.append(card);
+    for(const [value,label] of [[state.nums.length,"Tập đã chọn"],[state.nums.length-state.missing.length,"Có caption"],[state.missing.length,"Chưa xong"]]){
+      const card=el("div","","anpi-review-metric");card.append(el("strong",String(value)),el("small",label));summary.append(card);
     }
   }
-  root.replaceChildren();
-  for(const number of state.nums){
-    const item=drafts.get(number),wrap=el("div","","anpi-plan-item");
-    const header=el("div","","anpi-plan-header");
-    header.append(el("strong","TẬP "+String(number).padStart(3,"0"),"episode-head"));
-    header.append(el("span",item?"Đã có caption":"Chờ tạo","status"));
-    wrap.append(header,el("div",selection.get(number)?.name||("EP"+String(number).padStart(3,"0")+".mp4"),"muted"));
-    if(!item){
-      wrap.append(el("p","Chưa có caption. Nhấn Tạo caption và lịch để xử lý các tập còn thiếu.","muted"));
-      root.append(wrap);continue;
-    }
-    const when=el("input");when.type="datetime-local";when.value=new Date(Date.parse(item.scheduledAt)+7*3600000).toISOString().slice(0,16);
-    when.onchange=()=>{try{
-      const date=new Date(when.value+":00+07:00");
-      if(!Number.isFinite(date.getTime()))throw Error("Giờ đăng không hợp lệ");
-      item.scheduledAt=date.toISOString();renderDrafts();
-    }catch(e){show(e.message,true);}};
-    const label=el("label","Giờ đăng (Việt Nam)"),captionLabel=el("label","Caption tập "+number);
-    const area=el("textarea");area.value=item.caption;area.maxLength=2200;
-    const meta=el("div",item.caption.length+"/2200 ký tự","caption-meta");
-    area.oninput=()=>{
-      item.caption=area.value;meta.textContent=area.value.length+"/2200 ký tự";
-      const review=planReview();save.disabled=generating||!review.ready;
-      if(hint)hint.textContent=review.ready?"Đã đủ, có thể duyệt và lưu chiến dịch":"Kiểm tra caption và lịch trước khi lưu";
-    };
-    wrap.append(label,when,captionLabel,area,meta);root.append(wrap);
+  const table=el("table","","anpi-sheet");
+  const head=el("thead");const header=el("tr");
+  for(const [label,cls] of [["Tập","ep-col"],["Video","file-col"],["Giờ đăng (VN)","time-col"],["Nội dung trong video","source-col"],["Caption — sửa trực tiếp","caption-col"],["Trạng thái","state-col"]]){
+    header.append(el("th",label,cls));
   }
+  head.append(header);table.append(head);
+  const body=el("tbody");
+  for(const n of state.nums){
+    const item=drafts.get(n),episode=selection.get(n),row=el("tr");
+    row.append(el("td","EP"+String(n).padStart(3,"0"),"ep-col"));
+    row.append(el("td",episode?.name||"EP"+String(n).padStart(3,"0")+".mp4","file-col"));
+    const timeCell=el("td","","time-col");
+    if(item){
+      const input=el("input");input.type="datetime-local";input.value=vLocal(item.scheduledAt);
+      input.onchange=()=>{
+        try{
+          item.scheduledAt=toUTC(input.value);renderDrafts();
+        }catch(error){show(error.message,true);}
+      };timeCell.append(input);
+    }else timeCell.append(el("span","—","muted"));
+    row.append(timeCell);
+    row.append(el("td",item?.summary||"Chưa phân tích video","source-col"));
+    const cap=el("td","","caption-col");
+    if(item){
+      const area=el("textarea");area.maxLength=2200;area.rows=2;area.value=item.caption;
+      area.setAttribute("aria-label","Caption tập "+n);
+      area.oninput=()=>{
+        item.caption=area.value;
+        const latest=planReview();save.disabled=generating||!latest.ready;
+        if(hint)hint.textContent=latest.ready?"Đã đủ, có thể duyệt và lưu chiến dịch":"Kiểm tra caption, thời gian và số tập";
+      };cap.append(area);
+    }else cap.append(el("span","Chờ Gemini tạo caption…","muted"));
+    row.append(cap);
+    const status=videoStatuses.get(n)||{};
+    const label=status.status==="failed"?"Lỗi":status.status==="running"?"Đang đọc MP4":
+      status.status==="queued"?"Chờ xử lý":item?"Đã có caption":"Chưa tạo";
+    const cell=el("td","","state-col");
+    cell.append(el("span",label,"ep-state "+(status.status==="failed"?"failed":item?"ready":"")));
+    if(status.status==="failed"&&status.error)cell.append(el("div",status.error,"muted"));
+    row.append(cell);body.append(row);
+  }
+  table.append(body);root.replaceChildren(table);
+  root.scrollTop=scrolledY;root.scrollLeft=scrolledX;
 }
 async function prepareBatch(all=false){
   if(!selection.size||!$("series").value)return show("Bạn cần chọn phim và tập từ Drive trước.",true);
   checkFreshness();
   const offset=pendingOffset();
   if(offset<0){renderDrafts();return show("Tất cả tập đã có bản nháp. Có thể xem trước và lưu chiến dịch.");}
-  const manualOptions=getInputs(offset);manualOptions.limit=Math.min(30,manualOptions.episodes.length-offset);
+  const manualOptions=getInputs(offset);manualOptions.limit=all?selection.size:Math.min(30,manualOptions.episodes.length-offset);
   const data=await api("/muse/prepare",manualOptions);
   currentBatch={offset,entries:data.entries};
   $("musePrompt").value=data.prompt;
@@ -185,8 +208,95 @@ function mergeDraftPlan(plan,entries=currentBatch?.entries){
   $("museProgress").textContent=next<0?"Đã có đủ "+selection.size+"/"+selection.size+" tập. Kiểm tra và duyệt.":"Đã hoàn thành "+drafts.size+"/"+selection.size+" tập. Còn "+(selection.size-drafts.size)+" tập.";
 }
 let generating=false;
+async function loadVideoBatch(batchId){
+  const data=await api("/ai/video/status?batch="+encodeURIComponent(batchId));
+  const expected=data.items.map(x=>Number(x.episode)).sort((a,b)=>a-b);
+  const selected=getInputs().episodes;
+  if(selected.length!==expected.length||selected.some((n,i)=>n!==expected[i]))
+    throw Error("Batch Gemini có "+expected.length+" tập khác với lựa chọn hiện tại. Hãy chọn đúng các tập của chiến dịch đã tạo.");
+  if(!draftFingerprint)draftFingerprint=signature();
+  videoStatuses.clear();
+  for(const item of data.items){
+    const number=Number(item.episode);
+    videoStatuses.set(number,{status:item.status,error:item.error});
+    if(item.status==="ready"&&item.caption&&!drafts.has(number)){
+      drafts.set(number,{episode:number,scheduledAt:item.scheduled_at,caption:item.caption,summary:item.summary||""});
+    }
+  }
+  renderDrafts();
+  const completed=data.items.filter(x=>x.status==="ready").length;
+  const failed=data.items.filter(x=>x.status==="failed").length;
+  $("museProgress").textContent="Gemini đọc MP4: "+completed+"/"+data.batch.total+" tập hoàn thành"+
+    (failed?", "+failed+" tập lỗi.":"")+
+    ". Worker GitHub Actions xử lý từng video, không cần giữ trang mở.";
+  $("videoRetry").classList.toggle("hidden",!failed);
+  if(completed+failed===data.batch.total&&videoRefreshTimer){
+    clearInterval(videoRefreshTimer);videoRefreshTimer=null;
+  }
+  return data;
+}
+async function startVideoBatch(){
+  if(!selection.size)throw Error("Cần chọn ít nhất một tập từ Google Drive");
+  checkFreshness();
+  if(videoBatchId)throw Error("Đang theo dõi một lượt Gemini. Hãy khôi phục tiến trình thay vì tạo lượt trùng.");
+  const input=getInputs(0,selection.size);
+  if(!input.title)throw Error("Cần điền tên phim");
+  if(!confirm("Gemini sẽ phân tích nội dung thực tế của "+input.episodes.length+" video MP4. Các video được truyền tới Gemini qua worker và có thể phát sinh phí API. Bạn có muốn bắt đầu không?"))return;
+  generating=true;$("museGenerate").disabled=true;
+  try{
+    $("museProgress").textContent="Đang lưu hàng đợi phân tích MP4 cho "+selection.size+" tập...";
+    const batch=await api("/ai/video/start",input);
+    videoBatchId=batch.batchId;
+    sessionStorage.setItem("anpi-video-batch:"+input.folderId,videoBatchId);
+    await loadVideoBatch(videoBatchId);
+    if(videoRefreshTimer)clearInterval(videoRefreshTimer);
+    videoRefreshTimer=setInterval(()=>{if(videoBatchId)loadVideoBatch(videoBatchId).catch(e=>show(e.message,true));},30000);
+    show("Đã xếp hàng đợi "+batch.total+" MP4. Cùng một prompt áp dụng cho mọi tập; kết quả được lưu trong Supabase.");
+  }finally{generating=false;$("museGenerate").disabled=false;renderDrafts();}
+}
+async function restoreVideoBatch(){
+  const folder=$("series").value;if(!folder)throw Error("Hãy chọn phim trước khi khôi phục");
+  const latest=await api("/ai/video/latest?folder="+encodeURIComponent(folder));
+  if(!latest.batch?.id)throw Error("Chưa có chiến dịch phân tích video nào trong thư mục phim này");
+  videoBatchId=latest.batch.id;
+  const data=await api("/ai/video/status?batch="+encodeURIComponent(videoBatchId));
+  const nums=data.items.map(x=>Number(x.episode));
+  const settings=data.batch.settings||{};
+  if(settings.name)$("campaign").value=settings.name;
+  if(settings.pageId){
+    const found=[...$("pageSelect").options].find(x=>x.value===settings.pageId);
+    if(found)$("pageSelect").value=settings.pageId;
+  }
+  if(data.batch.title)$("aiTitle").value=data.batch.title;
+  if(data.batch.instructions!==undefined)$("museInstructions").value=data.batch.instructions;
+  if(settings.startDate)$("startDate").value=settings.startDate;
+  if(settings.time)$("startTime").value=settings.time;
+  if(settings.perDay)$("perDay").value=settings.perDay;
+  if(settings.spacingMinutes)$("spacing").value=settings.spacingMinutes;
+  if(!episodes.length)throw Error("Chưa tải danh sách tập từ Google Drive");
+  selection.clear();
+  for(const n of nums){
+    const file=episodes.find(x=>x.episode===n);
+    if(!file)throw Error("Google Drive không còn tập EP"+n+" của chiến dịch");
+    selection.set(n,file);
+  }
+  drafts.clear();videoStatuses.clear();draftFingerprint="";
+  episodeUI();renderDrafts();
+  await loadVideoBatch(videoBatchId);
+  if(videoRefreshTimer)clearInterval(videoRefreshTimer);
+  videoRefreshTimer=setInterval(()=>{if(videoBatchId)loadVideoBatch(videoBatchId).catch(e=>show(e.message,true));},30000);
+  show("Đã khôi phục tiến trình Gemini của "+nums.length+" tập.");
+}
+async function retryVideoBatch(){
+  if(!videoBatchId)throw Error("Hãy khôi phục tiến trình Gemini trước");
+  const result=await api("/ai/video/retry",{batchId:videoBatchId});
+  await loadVideoBatch(videoBatchId);
+  if(!videoRefreshTimer)videoRefreshTimer=setInterval(()=>loadVideoBatch(videoBatchId).catch(e=>show(e.message,true)),30000);
+  show("Đã xếp lại "+result.retry+" tập lỗi. Các tập đã hoàn thành được giữ nguyên.");
+}
 async function autoGenerate(){
   if(generating)return;
+  if($("planProvider").value==="gemini"&&$("captionSource").value==="video")return startVideoBatch();
   checkFreshness();
   let offset=pendingOffset();
   if(offset<0){renderDrafts();return show("Đã đủ caption tất cả tập.");}
@@ -301,10 +411,12 @@ export function initReelsStudio(){
     for(const item of events||[]){const row=el("div",new Date(item.created_at).toLocaleString("vi-VN",{timeZone:zone})+" · "+item.action+" · "+JSON.stringify(item.details||{}),"page");root.append(row);}
     if(!events?.length)root.textContent="Chưa có nhật ký.";
   })());
-  $("musePrepare").onclick=()=>handle(prepareBatch());
+  $("musePrepare").onclick=()=>handle(prepareBatch(true));
   $("museGenerate").onclick=()=>handle(autoGenerate());
+  $("resumeVideoBatch").onclick=()=>handle(restoreVideoBatch());
+  $("videoRetry").onclick=()=>handle(retryVideoBatch());
   $("museCopy").onclick=async()=>{
-    if(!$("musePrompt").value)await handle(prepareBatch());
+    if(!$("musePrompt").value)await handle(prepareBatch(true));
     if(!$("musePrompt").value)return;
     try{await navigator.clipboard.writeText($("musePrompt").value);show("Đã sao chép lệnh; gửi Muse và dán JSON trả về.");}
     catch{$("musePrompt").select();show("Hãy chọn rồi sao chép lệnh trong ô văn bản.");}
@@ -317,15 +429,16 @@ export function initReelsStudio(){
     const muse=$("planProvider").value==="muse",automatic=muse&&$("museMode").value==="gateway";
     $("museManualFields").classList.toggle("hidden",!muse);
     $("museGenerate").classList.toggle("hidden",muse&&!automatic);
-    $("museGenerate").textContent=muse?"Tạo kế hoạch bằng Muse":"Tạo caption và lịch cho tất cả tập bằng Gemini";
+    $("museGenerate").textContent=muse?"Tạo kế hoạch bằng Muse":$("captionSource").value==="video"?"Phân tích MP4 và tạo caption cho toàn bộ tập":"Tạo caption từ metadata cho toàn bộ tập";
     $("musePrepare").classList.toggle("hidden",!muse||automatic);
     $("museCopy").classList.toggle("hidden",!muse||automatic);
     $("musePrompt").closest("label").classList.toggle("hidden",!muse||automatic);
     $("museReply").closest("label").classList.toggle("hidden",!muse||automatic);
     $("museParse").classList.toggle("hidden",!muse||automatic);
   }
-  $("planProvider").onchange=updateProvider;
-  $("museMode").onchange=updateProvider;updateProvider();
+  $("planProvider").onchange=()=>{if($("planProvider").value==="muse")$("captionSource").value="metadata";updateProvider();};
+  $("museMode").onchange=updateProvider;
+  $("captionSource").onchange=updateProvider;updateProvider();
   for(const id of ["startDate","startTime","perDay","spacing","aiTitle","museInstructions"]){
     $(id).addEventListener("change",()=>{if(draftFingerprint&&draftFingerprint!==signature())resetPlan();});
   }
