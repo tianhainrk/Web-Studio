@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {planSpecification,musePrompt,validateMuseReply,validateApprovedPlan,validateSelection,gatewayEndpoint,geminiPlanRequest,parsePlanItems,geminiPlanRequest} from "../src/muse-planner.mjs";
+import {planSpecification,musePrompt,validateMuseReply,validateApprovedPlan,validateSelection,gatewayEndpoint,geminiPlanRequest,parsePlanItems} from "../src/muse-planner.mjs";
 
 const episodes=[1,2,3,4,5,6,7,8,9];
 const prepared={
