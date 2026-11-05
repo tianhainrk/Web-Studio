@@ -58,6 +58,7 @@ async function refreshEpisodes(){
   if(!folder)return show("Hãy chọn một phim từ danh sách.",true);
   $("selection").textContent="Đang tải danh sách tập từ Google Drive...";
   const data=await api("/drive/episodes?folder="+encodeURIComponent(folder));
+  if($("series").value!==folder)return;
   if(sequence!==episodeLoadSequence||folder!==$("series").value)return;
   const original=data.episodes||[];episodes=[...new Map(original.map(ep=>[ep.episode,ep])).values()].sort((a,b)=>a.episode-b.episode);selection.clear();resetPlan();episodeUI();
   const current=series.find(x=>x.id===folder);
@@ -241,6 +242,7 @@ export function initReelsStudio(){
   $("meta").onclick=()=>connect("meta");
   $("loadSeries").onclick=()=>handle(refreshSeries());
   $("loadEpisodes").onclick=()=>handle(refreshEpisodes());
+  $("series").onchange=()=>handle(refreshEpisodes());
   $("selectAll").onclick=()=>{selection.clear();for(const ep of episodes)selection.set(ep.episode,ep);resetPlan();episodeUI();};
   $("clearAll").onclick=()=>{selection.clear();resetPlan();episodeUI();};
   $("selectRange").onclick=()=>{
@@ -254,10 +256,10 @@ export function initReelsStudio(){
     for(const item of events||[]){const row=el("div",new Date(item.created_at).toLocaleString("vi-VN",{timeZone:zone})+" · "+item.action+" · "+JSON.stringify(item.details||{}),"page");root.append(row);}
     if(!events?.length)root.textContent="Chưa có nhật ký.";
   })());
-  $("musePrepare").onclick=()=>handle(prepareBatch());
+  $("musePrepare").onclick=()=>handle(prepareBatch(true));
   $("museGenerate").onclick=()=>handle(autoGenerate());
   $("museCopy").onclick=async()=>{
-    if(!$("musePrompt").value)await handle(prepareBatch());
+    if(!$("musePrompt").value)await handle(prepareBatch(true));
     if(!$("musePrompt").value)return;
     try{await navigator.clipboard.writeText($("musePrompt").value);show("Đã sao chép lệnh; hãy gửi vào Muse, rồi dán JSON Muse trả về.");}
     catch{ $("musePrompt").select();show("Chọn và sao chép nội dung lệnh ở ô phía trên.");}
@@ -266,8 +268,10 @@ export function initReelsStudio(){
   $("museReset").onclick=()=>{if(confirm("Xóa toàn bộ bản nháp Muse chưa lưu?"))resetPlan();};
   $("create").onclick=()=>handle(createCampaign());
   $("reelsRefresh").onclick=()=>handle(refreshAll());
-  $("museMode").onchange=()=>{const automatic=$("museMode").value==="gateway";$("museGenerate").classList.toggle("hidden",!automatic);$("musePrepare").classList.toggle("hidden",automatic);};
+  $("museMode").onchange=()=>{const manual=$("museMode").value==="manual";$("musePrepare").classList.toggle("hidden",!manual);$("museCopy").classList.toggle("hidden",!manual);$("museParse").classList.toggle("hidden",!manual);};
   $("museMode").onchange();
+  $("planProvider").onchange=()=>{$("museManualFields").classList.toggle("hidden",$("planProvider").value!=="muse");resetPlan();};
+  $("planProvider").onchange();
   for(const id of ["startDate","startTime","perDay","spacing","aiTitle","museInstructions","series"]){
     $(id).addEventListener("change",()=>{if(draftFingerprint&&draftFingerprint!==signature())resetPlan();});
   }
