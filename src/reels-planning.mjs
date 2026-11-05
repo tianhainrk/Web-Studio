@@ -1,4 +1,3 @@
-import {scheduleEpisodes} from "./reels-core.mjs";
 export const VN_OFFSET_MS=7*60*60*1000;
 export function vnDate(iso){
   const t=Date.parse(iso);
@@ -42,28 +41,39 @@ export function normalizeBalancedReply(rows,refs,{startDate,now=Date.now()}={}){
   const numbers=refs.map(x=>Number(x.episode));
   if(numbers.some((n,i)=>!Number.isInteger(n)||(i&&n<=numbers[i-1])))throw Error("Manifest tập không hợp lệ");
   const baseline=balancedSchedule({startDate,count:refs.length});
-  let changes=0;
-  const output=[];
-  rows.forEach((row,i)=>{
-    if(Number(row.episode)!==numbers[i])throw Error("JSON trả sai số tập hoặc thứ tự tại vị trí "+(i+1));
-    const caption=String(row.caption||"").trim();
-    if(!caption||caption.length>2200)throw Error("Thiếu caption hợp lệ cho EP"+numbers[i]);
-    const proposed=String(row.scheduledAt||"");
-    let time=Date.parse(proposed);
-    if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(proposed)||!Number.isFinite(time))
-      time=Date.parse(baseline[i]);
-    const day=vnDate(baseline[i]),min=Number.isFinite(time)?vnMinutes(new Date(time).toISOString()):-1;
-    const previous=i?Date.parse(output[i-1].scheduledAt):-Infinity;
-    if(vnDate(new Date(time).toISOString())!==day||min<420||min>1380||time-previous<15*60000){
-      time=Date.parse(baseline[i]);
+  const output=[];let adjusted=0;
+  for(let i=0;i<rows.length;i++){
+    if(Number(rows[i].episode)!==numbers[i])throw Error("JSON trả sai số tập hoặc thứ tự tại vị trí "+(i+1));
+    if(!String(rows[i].caption||"").trim()||String(rows[i].caption).length>2200)
+      throw Error("Thiếu caption hợp lệ cho EP"+numbers[i]);
+  }
+  // Preserve the AI's decisions when an entire day's sequence is safe.
+  // If any time is invalid, fall back to a consistent full-day baseline
+  // rather than producing overlapping slots in a partially repaired day.
+  let groupStart=0;
+  while(groupStart<rows.length){
+    const day=vnDate(baseline[groupStart]);
+    let groupEnd=groupStart+1;
+    while(groupEnd<rows.length&&vnDate(baseline[groupEnd])===day)groupEnd++;
+    let valid=true,previous=-Infinity;
+    for(let i=groupStart;i<groupEnd;i++){
+      const raw=String(rows[i].scheduledAt||"");
+      const t=Date.parse(raw);
+      if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(raw)
+        ||!Number.isFinite(t)||t<=now+60000||vnDate(raw)!==day||vnMinutes(raw)<420||vnMinutes(raw)>1380||t-previous<15*60000){
+        valid=false;break;
+      }
+      previous=t;
     }
-    if(time<=now+60000)throw Error("Ngày đăng đã qua hoặc quá gần hiện tại: hãy chọn ngày bắt đầu khác");
-    const scheduledAt=new Date(time).toISOString();
-    if(scheduledAt!==proposed)changes++;
-    output.push({episode:numbers[i],scheduledAt,caption});
-  });
+    for(let i=groupStart;i<groupEnd;i++){
+      const scheduledAt=valid?new Date(rows[i].scheduledAt).toISOString():baseline[i];
+      if(scheduledAt!==rows[i].scheduledAt)adjusted++;
+      output.push({episode:numbers[i],scheduledAt,caption:String(rows[i].caption).trim()});
+    }
+    groupStart=groupEnd;
+  }
   validateBalancedSchedule(output,startDate,now);
-  return {plan:output,adjusted:changes};
+  return {plan:output,adjusted};
 }
 export function validateBalancedSchedule(plan,startDate,now=Date.now()){
   if(!Array.isArray(plan)||!plan.length)throw Error("Chiến dịch không có tập");
