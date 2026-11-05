@@ -241,6 +241,7 @@ async function startVideoBatch(){
   if(videoBatchId)throw Error("Đang theo dõi một lượt Gemini. Hãy khôi phục tiến trình thay vì tạo lượt trùng.");
   const input=getInputs(0,selection.size);
   if(!input.title)throw Error("Cần điền tên phim");
+  if(!confirm("Gemini sẽ phân tích nội dung thực tế của "+input.episodes.length+" video MP4. Các video được truyền tới Gemini qua worker và có thể phát sinh phí API. Bạn có muốn bắt đầu không?"))return;
   generating=true;$("museGenerate").disabled=true;
   try{
     $("museProgress").textContent="Đang lưu hàng đợi phân tích MP4 cho "+selection.size+" tập...";
@@ -255,12 +256,23 @@ async function startVideoBatch(){
 }
 async function restoreVideoBatch(){
   const folder=$("series").value;if(!folder)throw Error("Hãy chọn phim trước khi khôi phục");
-  const saved=sessionStorage.getItem("anpi-video-batch:"+folder);
-  const latest=saved?{batch:{id:saved}}:await api("/ai/video/latest?folder="+encodeURIComponent(folder));
+  const latest=await api("/ai/video/latest?folder="+encodeURIComponent(folder));
   if(!latest.batch?.id)throw Error("Chưa có chiến dịch phân tích video nào trong thư mục phim này");
   videoBatchId=latest.batch.id;
   const data=await api("/ai/video/status?batch="+encodeURIComponent(videoBatchId));
   const nums=data.items.map(x=>Number(x.episode));
+  const settings=data.batch.settings||{};
+  if(settings.name)$("campaign").value=settings.name;
+  if(settings.pageId){
+    const found=[...$("pageSelect").options].find(x=>x.value===settings.pageId);
+    if(found)$("pageSelect").value=settings.pageId;
+  }
+  if(data.batch.title)$("aiTitle").value=data.batch.title;
+  if(data.batch.instructions!==undefined)$("museInstructions").value=data.batch.instructions;
+  if(settings.startDate)$("startDate").value=settings.startDate;
+  if(settings.time)$("startTime").value=settings.time;
+  if(settings.perDay)$("perDay").value=settings.perDay;
+  if(settings.spacingMinutes)$("spacing").value=settings.spacingMinutes;
   if(!episodes.length)throw Error("Chưa tải danh sách tập từ Google Drive");
   selection.clear();
   for(const n of nums){
