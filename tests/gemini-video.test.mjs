@@ -34,7 +34,7 @@ test("UI exposes one-button video queue, restore and compact Excel layout",()=>{
   const api=readFileSync(new URL("../src/reels-api.mjs",import.meta.url),"utf8");
   const sql=readFileSync(new URL("../supabase/gemini-video.sql",import.meta.url),"utf8");
   assert.match(html,/id="captionSource"/);
-  assert.match(html,/option value="video" selected/);
+  assert.match(html,/option value="connected_drive" selected/);
   assert.match(html,/anpi-sheet/);
   assert.match(client,/async function startVideoBatch/);
   assert.match(client,/api\("\/ai\/video\/start"/);

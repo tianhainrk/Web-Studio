@@ -34,10 +34,11 @@ test("Muse review required before saving campaign",()=>{
   assert.match(reels,/api\("\/campaigns\/create"/);
 });
 
-test("Gemini is the primary planner, Muse remains secondary, and episodes auto-load",()=>{
+test("Muse connected Drive is the primary planner, Gemini remains metadata-only, episodes auto-load",()=>{
   assert.match(html,/id="planProvider"/);
-  assert.match(html,/<option value="gemini" selected>/);
-  assert.match(html,/<option value="muse">Muse AI/);
+  assert.match(html,/<option value="muse" selected>/);
+  assert.match(html,/id="museJsonFile"/);
+  assert.match(html,/<option value="gemini">Gemini/);
   assert.match(html,/id="reviewSummary"/);
   assert.match(html,/id="reviewHint"/);
   assert.match(html,/id="museManualFields"/);
@@ -47,14 +48,14 @@ test("Gemini is the primary planner, Muse remains secondary, and episodes auto-l
 });
 
 test("all-episode review supports 10/10 and manual JSON",()=>{
-  assert.match(reels,/getInputs\(start,rows\.length\)/);
+  assert.match(reels,/getInputs\(0,getInputs\(\)\.episodes\.length\)/);
   assert.match(reels,/while\(offset>=0\)/);
   assert.match(reels,/function planReview\(/);
 });
 
 test("full ten-episode Muse JSON sends its actual count to the backend",()=>{
   assert.match(reels,/function getInputs\(offset=0,limit=8\)/);
-  assert.match(reels,/getInputs\(start,rows\.length\)/);
+  assert.match(reels,/getInputs\(0,getInputs\(\)\.episodes\.length\)/);
   assert.match(reels,/instructions:\$\("museInstructions"\)\.value,offset,limit/);
-  assert.match(html,/anpi-summary-stat/);
+  assert.match(html,/anpi-review-metric/);
 });

@@ -353,13 +353,13 @@
 <div class="panel"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Facebook Reels Studio</h2><button id="reelsRefresh" class="detail-secondary">Làm mới</button></div><div id="statusPanel"></div><p id="notice" aria-live="polite"></p><p class="muted">Chỉ đăng video bạn có quyền sử dụng. Giờ đặt lịch: Việt Nam (GMT+7). Đăng tự động do GitHub Actions thực hiện, có thể bị trễ so với lịch.</p></div>
 <div class="layout">
 <section class="panel"><h2>1. Kết nối tài khoản</h2><p class="muted">Dùng OAuth chính thức. Token được mã hóa và chỉ lưu ở server.</p><div class="row"><button id="google">Kết nối Google Drive</button><button id="meta">Kết nối Meta / Fanpage</button></div><h3>Fanpage</h3><div id="pages">Chưa kết nối.</div></section>
-<section class="panel"><h2>2. Chọn phim từ Google Drive</h2><div class="row"><button id="loadSeries" class="small">Tải danh sách thư mục phim</button></div><label class="field">Phim / Collection ID<select id="series"><option value="">Chọn phim</option></select></label><div class="row"><button id="loadEpisodes" class="small">Xem tập</button><button id="selectAll" class="small">Chọn tất cả</button><button id="clearAll" class="small">Bỏ chọn</button></div><div class="grid"><label class="field">Từ tập<input id="episodeFrom" type="number" min="1" value="1"></label><label class="field">Đến tập<input id="episodeTo" type="number" min="1" value="10"></label></div><div class="row"><button id="selectRange" class="small">Chọn khoảng tập</button></div><p class="muted" id="selection">Đã chọn 0 tập</p><div id="episodes" class="episodes"></div></section>
+<section class="panel"><h2>2. Chọn phim từ Google Drive</h2><div class="row"><button id="loadSeries" class="small">Tải danh sách thư mục phim</button></div><label class="field">Phim / Collection ID<select id="series"><option value="">Chọn phim</option></select></label><div class="row"><button id="loadEpisodes" class="small">Tải lại danh sách tập</button><button id="selectAll" class="small">Chọn tất cả</button><button id="clearAll" class="small">Bỏ chọn</button></div><div class="grid"><label class="field">Từ tập<input id="episodeFrom" type="number" min="1" value="1"></label><label class="field">Đến tập<input id="episodeTo" type="number" min="1" value="10"></label></div><div class="row"><button id="selectRange" class="small">Chọn khoảng tập</button></div><p class="muted" id="selection">Đã chọn 0 tập</p><div id="episodes" class="episodes"></div></section>
 <section class="panel anpi-muse-panel">
-  <div class="row" style="align-items:center;justify-content:space-between"><h2 style="margin:0">3. AI lập lịch và tạo caption</h2><span class="anpi-ai-note">Gemini ưu tiên · Muse dự phòng</span></div>
-  <p class="muted">Một hướng dẫn áp dụng cho mọi tập đã chọn. Gemini phân tích nội dung MP4 thực tế qua worker; Muse dự phòng hoặc chế độ chỉ dùng metadata. Kết quả được lưu thành bản nháp để bạn kiểm tra trước khi đăng.</p>
+  <div class="row" style="align-items:center;justify-content:space-between"><h2 style="margin:0">3. AI lập lịch và tạo caption</h2><span class="anpi-ai-note">Muse + Google Drive · Không cần Gemini video API</span></div>
+  <p class="muted">Tạo một lệnh duy nhất để Muse đang kết nối Google Drive mở đúng thư mục, xem từng MP4, viết caption theo nội dung và dọn file video tạm trong workspace. Nhập JSON Muse trả về để duyệt chiến dịch.</p>
   <div class="grid">
     <label class="field">AI thực hiện
-      <select id="planProvider"><option value="gemini" selected>Gemini AI (ưu tiên)</option><option value="muse">Muse AI</option></select>
+      <select id="planProvider"><option value="muse" selected>Muse – Drive đã kết nối (ưu tiên)</option><option value="gemini">Gemini – chỉ metadata (tùy chọn)</option></select>
     </label>
     <label class="field">Tên chiến dịch<input id="campaign" maxlength="100" placeholder="Ví dụ: Bộ phim A – 10 tập"></label>
   </div>
@@ -371,8 +371,8 @@
   <div class="grid"><label class="field">Số tập/ngày<input id="perDay" type="number" min="1" max="24" value="2"></label><label class="field">Giãn cách (phút)<input id="spacing" type="number" min="1" max="1440" value="60"></label></div>
   <div class="grid">
     <label class="field">Nguồn nội dung cho caption<select id="captionSource">
-      <option value="video" selected>Đọc nội dung từng MP4 (Gemini)</option>
-      <option value="metadata">Chỉ dựa trên tên phim/tập (nhanh)</option>
+      <option value="connected_drive" selected>Muse tự xem MP4 từ Drive đã kết nối</option>
+      <option value="metadata">Chỉ tên phim/tập, không xem video</option>
     </select></label>
     <label class="field">Thực thi hàng loạt
       <input value="Một prompt duy nhất cho toàn bộ tập đã chọn" readonly aria-label="Một prompt cho toàn bộ tập" />
@@ -380,20 +380,22 @@
   </div>
   <label class="field">Hướng dẫn chung cho toàn bộ tập<textarea id="museInstructions" maxlength="1200" rows="3" placeholder="Viết caption dựa trên cảnh phim thực tế, tự nhiên, không spoil, 2 hashtag."></textarea></label>
   <div class="row" style="justify-content:space-between">
-    <button id="museGenerate" class="primary">Tạo caption toàn bộ tập đã chọn</button>
-    <button id="museReset" class="detail-secondary">Xóa bản nháp</button><button id="resumeVideoBatch" class="detail-secondary">Khôi phục tiến trình Gemini</button><button id="videoRetry" class="detail-secondary hidden">Thử lại tập lỗi</button>
+    <button id="museGenerate" class="primary">Tạo caption từ metadata (không xem MP4)</button>
+    <button id="museReset" class="detail-secondary">Xóa bản nháp</button><button id="resumeVideoBatch" class="detail-secondary">Xem hàng đợi Gemini cũ</button><button id="videoRetry" class="detail-secondary hidden">Thử lại Gemini</button><button id="videoCancel" class="detail-secondary hidden">Hủy hàng đợi Gemini cũ</button>
   </div>
-  <p id="museProgress" class="muted" aria-live="polite">Chọn tập, nhập một hướng dẫn và nhấn Tạo. Với MP4, tiến độ chạy trong GitHub Actions kể cả khi đóng trang.</p>
+  <p id="museProgress" class="muted" aria-live="polite">Chọn phim và các tập, nhấn Tạo lệnh Muse, sao chép vào Muse đã kết nối Drive. Muse xử lý và xuất JSON; nhập lại để duyệt.</p>
   <div id="museManualFields" class="hidden">
     <div class="panel" style="background:#111527;border-color:#3c405a">
-      <h3 style="margin:0 0 10px">Muse – tạo hoặc nhập kết quả JSON</h3>
+      <h3 style="margin:0 0 10px">Muse – xem video trong Drive và tạo caption</h3>
       <label class="field">Cách kết nối Muse
-        <select id="museMode"><option value="manual">Sao chép lệnh và dán JSON</option><option value="gateway">Muse2API tự động (cần gateway)</option></select>
+        <select id="museMode"><option value="manual">Dùng Muse đã kết nối Google Drive (nên dùng)</option><option value="gateway">Muse2API chat – chưa xác minh quyền Drive</option></select>
       </label>
-      <div class="row"><button id="musePrepare" class="detail-secondary">Tạo lệnh gửi Muse</button><button id="museCopy" class="detail-secondary">Sao chép lệnh</button></div>
-      <label class="field">Lệnh gửi Muse<textarea id="musePrompt" rows="5" readonly></textarea></label>
-      <label class="field">Dán JSON Muse trả về – có thể dán đủ 10/10 hoặc từng lô<textarea id="museReply" rows="6" placeholder='{"items":[{"episode":1,"scheduledAt":"...","caption":"..."}]}'></textarea></label>
-      <button id="museParse" class="detail-secondary">Nhập và kiểm tra toàn bộ JSON</button>
+      <div class="row"><button id="musePrepare" class="primary">Tạo một lệnh Muse cho tất cả tập</button><button id="museCopy" class="detail-secondary">Sao chép lệnh</button></div>
+      <label class="field">Lệnh Muse: đúng thư mục + tất cả MP4 + caption + dọn file tạm<textarea id="musePrompt" rows="7" readonly></textarea></label>
+      <label class="field">Dán JSON Muse trả về (đủ 80 tập hoặc từng nhóm)<textarea id="museReply" rows="6" placeholder='{"items":[{"episode":1,"scheduledAt":"...","caption":"...","summary":"...","evidence":"00:10..."}]}'></textarea></label>
+      <label class="field">Hoặc chọn file anpi-reels-plan.json do Muse xuất<input id="museJsonFile" type="file" accept=".json,application/json"></label>
+      <button id="museParse" class="detail-secondary">Nhập kết quả Muse vào bảng</button>
+      <p class="muted" style="font-size:12px">Chỉ xóa bản sao video Muse tải vào workspace để phân tích, không xóa MP4 gốc trong Google Drive. Muse phải xác nhận đã dọn tệp tạm; Anpi Drama không tự xóa file phía Muse.</p>
     </div>
   </div>
   <div class="anpi-review-head">

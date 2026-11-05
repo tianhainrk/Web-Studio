@@ -158,6 +158,16 @@ export async function reelsRoute(req,res,path){
       const items=await db("reel_ai_items?batch_id=eq."+id+"&select=episode,filename,scheduled_at,caption,summary,status,error,attempts&order=episode.asc&limit=300");
       return json(res,200,{batch,items});
     }
+    if(path==="/ai/video/cancel"&&method==="POST"){
+      const request=await body(req),id=String(request.batchId||"");
+      if(!/^[0-9a-f-]{36}$/i.test(id))return fail(res,400,"Batch ID không hợp lệ");
+      const existing=(await db("reel_ai_batches?id=eq."+id+"&select=id,status&limit=1"))?.[0];
+      if(!existing)return fail(res,404,"Không thấy batch Gemini");
+      if(existing.status==="cancelled")return json(res,200,{ok:true,status:"cancelled"});
+      await db("reel_ai_batches?id=eq."+id,{method:"PATCH",body:{status:"cancelled",updated_at:new Date().toISOString()}});
+      await audit("gemini_video_batch_cancelled",{batchId:id});
+      return json(res,200,{ok:true,status:"cancelled"});
+    }
     if(path==="/ai/video/retry"&&method==="POST"){
       const request=await body(req),id=String(request.batchId||"");
       if(!/^[0-9a-f-]{36}$/i.test(id))return fail(res,400,"Batch ID không hợp lệ");
@@ -186,12 +196,21 @@ export async function reelsRoute(req,res,path){
     if(path==="/muse/parse"&&method==="POST"){
       const request=await body(req);
       const items=parsePlanItems(String(request.reply||""));
-      const selected=Array.isArray(request.episodes)?[...request.episodes].map(Number).sort((a,b)=>a-b):[];
-      const offset=selected.indexOf(Number(items[0]?.episode));
-      if(offset<0||offset+items.length>selected.length)return fail(res,400,"JSON chứa tập ngoài danh sách đã chọn");
-      const prepared=await prepareMuse({...request,offset,limit:items.length});
-      const plan=validateMuseReply(String(request.reply||""),prepared.batch);
-      return json(res,200,{plan,entries:prepared.batch,provider:"muse_manual",status:"draft"});
+      const selection=Array.isArray(request.episodes)?request.episodes:[];
+      const prepared=await prepareMuse({...request,offset:0,limit:selection.length});
+      const entries=new Map(prepared.batch.map(x=>[x.episode,x]));
+      const seen=new Set();let previous=-Infinity;
+      const matching=[];
+      for(const item of items){
+        const number=Number(item.episode);
+        if(!entries.has(number)||seen.has(number)||number<=previous)return fail(res,400,"JSON có tập ngoài danh sách, trùng hoặc không tăng dần");
+        if(request.museReadDrive===true&&(!String(item.summary||"").trim()||!String(item.evidence||"").trim()))
+          return fail(res,400,"Tập "+number+" thiếu summary/evidence cho việc xem video. Không xác nhận caption dựa trên video nếu chưa có bằng chứng.");
+        seen.add(number);previous=number;
+        matching.push(entries.get(number));
+      }
+      const plan=validateMuseReply(String(request.reply||""),matching);
+      return json(res,200,{plan,entries:matching,provider:"muse_connected_drive",status:"draft",received:plan.length,total:prepared.batch.length});
     }
     if(path==="/gemini/generate"&&method==="POST"){
       const request=await body(req);
