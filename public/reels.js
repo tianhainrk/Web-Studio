@@ -8,7 +8,7 @@ function btn(name,handler,cls="small"){const b=el("button",name,cls);b.type="but
 async function api(path,body){
   const res=await fetch("/api/reels"+path,{credentials:"same-origin",...(body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})});
   const data=await res.json().catch(()=>({}));
-  if(res.status===401){location.href="/";throw Error("Cần đăng nhập PineDrama Studio");}
+  if(res.status===401){throw Error("Phiên Anpi Drama đã hết hạn, hãy đăng nhập lại");}
   if(!res.ok)throw Error(data.error||"API HTTP "+res.status);
   return data;
 }
@@ -47,37 +47,130 @@ function episodeUI(){
   const root=$("episodes");root.replaceChildren();
   for(const ep of episodes){
     const active=selection.has(ep.episode);
-    root.append(btn("EP"+String(ep.episode).padStart(3,"0"),()=>{if(active)selection.delete(ep.episode);else selection.set(ep.episode,ep);episodeUI();},"ep"+(active?" selected":"")));
+    root.append(btn("EP"+String(ep.episode).padStart(3,"0"),()=>{if(active)selection.delete(ep.episode);else selection.set(ep.episode,ep);resetPlan();episodeUI();},"ep"+(active?" selected":"")));
   }
   $("selection").textContent="Đã chọn "+selection.size+" / "+episodes.length+" tập.";
 }
 async function refreshEpisodes(){
   const folder=$("series").value;if(!folder)return show("Chọn một thư mục phim",true);
   const data=await api("/drive/episodes?folder="+encodeURIComponent(folder));
-  episodes=data.episodes||[];selection.clear();episodeUI();
+  const original=data.episodes||[];episodes=[...new Map(original.map(ep=>[ep.episode,ep])).values()].sort((a,b)=>a.episode-b.episode);selection.clear();resetPlan();episodeUI();
+  if(original.length>episodes.length)show("Drive có "+(original.length-episodes.length)+" file trùng số tập; giao diện chỉ hiển thị 1 lựa chọn mỗi tập.",true);
   const current=series.find(x=>x.id===folder);
   if(current)$("aiTitle").value=current.name;
   show("Tìm thấy "+episodes.length+" tập trong thư mục.");
 }
-async function createCampaign(){
-  const data={
-    name:$("campaign").value,pageId:$("pageSelect").value,folderId:$("series").value,
+
+let initialized=false;
+let draftFingerprint="";
+const drafts=new Map();
+let currentBatch=null;
+function getInputs(offset=0){
+  return {
+    name:$("campaign").value.trim(),pageId:$("pageSelect").value,folderId:$("series").value,
+    title:$("aiTitle").value.trim(),
     episodes:[...selection.keys()].sort((a,b)=>a-b),
     startDate:$("startDate").value,time:$("startTime").value,
     perDay:Number($("perDay").value),spacingMinutes:Number($("spacing").value),
-    caption:$("caption").value
+    instructions:$("museInstructions").value,offset,limit:8
   };
-  if(!data.pageId||!data.folderId||!data.episodes.length)return show("Cần chọn Fanpage, phim và ít nhất một tập",true);
-  const summary=data.episodes.length+" tập sẽ được đăng theo lịch của bạn. Tạo chiến dịch?";
-  if(!confirm(summary))return;
-  const result=await api("/campaigns/create",data);
-  show("Đã tạo chiến dịch "+result.count+" tập. Worker sẽ xử lý khi đến lịch.");
-  await refreshReports();
 }
-async function genCaption(){
-  const ep=[...selection.keys()].sort((a,b)=>a-b)[0]||1;
-  const data=await api("/caption",{provider:$("aiProvider").value,title:$("aiTitle").value,episode:ep});
-  $("caption").value=data.caption;show("Đã tạo caption, bạn có thể chỉnh sửa trước khi lập lịch.");
+function signature(){
+  const x=getInputs();delete x.offset;delete x.limit;delete x.name;
+  return JSON.stringify(x);
+}
+function resetPlan(){
+  drafts.clear();draftFingerprint="";currentBatch=null;
+  const p=$("musePrompt"),r=$("museReply");if(p)p.value="";if(r)r.value="";
+  renderDrafts();
+}
+function checkFreshness(){
+  const s=signature();
+  if(draftFingerprint&&draftFingerprint!==s)resetPlan();
+  if(!draftFingerprint)draftFingerprint=s;
+}
+function pendingOffset(){
+  const selected=[...selection.keys()].sort((a,b)=>a-b);
+  return selected.findIndex(n=>!drafts.has(n));
+}
+function vLocal(iso){return new Date(Date.parse(iso)+7*3600000).toISOString().slice(0,16);}
+function toUTC(value){
+  const d=new Date(value+":00+07:00");
+  if(!Number.isFinite(d.getTime()))throw Error("Giờ Việt Nam không hợp lệ");
+  return d.toISOString();
+}
+function renderDrafts(){
+  const root=$("musePreview"),info=$("museDraftCount"),save=$("create");
+  if(!root||!info||!save)return;
+  root.replaceChildren();
+  const nums=[...selection.keys()].sort((a,b)=>a-b);
+  info.textContent="Đã chuẩn bị "+nums.filter(n=>drafts.has(n)).length+"/"+nums.length+" tập. Mỗi lô tối đa 8 tập.";
+  save.disabled=!nums.length||nums.some(n=>!drafts.has(n))||!!(draftFingerprint&&draftFingerprint!==signature());
+  for(const number of nums){
+    const item=drafts.get(number);if(!item)continue;
+    const wrap=el("div","","anpi-plan-item"),header=el("div","","anpi-plan-header");
+    header.append(el("strong","EP"+String(number).padStart(3,"0")));
+    const when=el("input");when.type="datetime-local";when.value=vLocal(item.scheduledAt);
+    when.onchange=()=>{try{item.scheduledAt=toUTC(when.value);show("Đã sửa giờ tập "+number+". Hãy kiểm tra trước khi lưu.");}catch(e){show(e.message,true);}};
+    header.append(when);
+    const label=el("label","Caption tập "+number),area=el("textarea");
+    area.maxLength=2200;area.value=item.caption;area.oninput=()=>{item.caption=area.value;};
+    wrap.append(header,label,area);root.append(wrap);
+  }
+}
+async function prepareBatch(){
+  if(!selection.size||!$("series").value)return show("Bạn cần chọn phim và tập từ Drive trước.",true);
+  checkFreshness();
+  const offset=pendingOffset();
+  if(offset<0){renderDrafts();return show("Tất cả tập đã có bản nháp. Có thể xem trước và lưu chiến dịch.");}
+  const data=await api("/muse/prepare",getInputs(offset));
+  currentBatch={offset,entries:data.entries};
+  $("musePrompt").value=data.prompt;
+  $("museProgress").textContent="Đã tạo lệnh cho "+data.entries.length+" tập, bắt đầu từ EP"+data.entries[0].episode+".";
+  return data;
+}
+function mergeDraftPlan(plan){
+  if(!currentBatch||!Array.isArray(plan)||plan.length!==currentBatch.entries.length)throw Error("Kết quả Muse không trùng lô đang chọn");
+  for(let i=0;i<plan.length;i++){
+    if(Number(plan[i].episode)!==Number(currentBatch.entries[i].episode))throw Error("Muse trả sai thứ tự tập");
+    drafts.set(Number(plan[i].episode),{...plan[i]});
+  }
+  $("museReply").value="";currentBatch=null;renderDrafts();
+  const next=pendingOffset();
+  $("museProgress").textContent=next<0?"Đã có đủ bản nháp. Kiểm tra giờ và caption rồi duyệt.":"Đã nhận bản nháp. Nhấn Tạo kế hoạch với Muse / Tạo lệnh để xử lý lô tiếp theo.";
+}
+async function autoGenerate(){
+  checkFreshness();
+  let offset=pendingOffset();
+  if(offset<0)return show("Bản nháp đã đủ. Nhấn Xóa bản nháp nếu muốn tạo mới.");
+  const button=$("museGenerate");button.disabled=true;
+  try{
+    while(offset>=0){
+      $("museProgress").textContent="Đang yêu cầu Muse xử lý lô bắt đầu từ tập "+getInputs().episodes[offset]+"...";
+      const data=await api("/muse/generate",getInputs(offset));
+      currentBatch={offset,entries:data.plan};
+      mergeDraftPlan(data.plan);
+      offset=pendingOffset();
+    }
+    show("Muse đã tạo xong bản nháp. Vui lòng xem lại caption và lịch từng tập trước khi lưu.");
+  }finally{button.disabled=false;}
+}
+async function manualParse(){
+  if(!currentBatch){await prepareBatch();}
+  if(!currentBatch)return;
+  const data=await api("/muse/parse",{...getInputs(currentBatch.offset),reply:$("museReply").value});
+  mergeDraftPlan(data.plan);show("Đã nhập kết quả Muse; kiểm tra từng tập.");
+}
+async function createCampaign(){
+  checkFreshness();
+  const input=getInputs();
+  const plan=input.episodes.map(n=>drafts.get(n));
+  if(!input.pageId||!input.folderId||!input.episodes.length)return show("Cần chọn Fanpage, phim và ít nhất một tập.",true);
+  if(plan.some(x=>!x))return show("Muse chưa tạo đủ bản nháp cho toàn bộ tập.",true);
+  if(!confirm("Duyệt "+plan.length+" tập để lưu lịch đăng lên Fanpage? Muse chỉ tạo bản nháp, worker sẽ đăng khi đến lịch."))return;
+  const data=await api("/campaigns/create",{...input,plan});
+  show("Đã lưu chiến dịch "+data.count+" tập vào Supabase.");
+  resetPlan();await refreshReports();
 }
 function campaignsUI(campaigns){
   const root=$("campaigns");root.replaceChildren();
@@ -116,26 +209,48 @@ async function refreshAll(){
   await Promise.all([refreshPages(),refreshReports()]);
 }
 function todayVietnam(){const p=new Intl.DateTimeFormat("en-GB",{timeZone:zone,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const v=Object.fromEntries(p.map(x=>[x.type,x.value]));return v.year+"-"+v.month+"-"+v.day;}
-$("startDate").value=todayVietnam();
-$("google").onclick=()=>connect("google");
-$("meta").onclick=()=>connect("meta");
-$("loadSeries").onclick=()=>handle(refreshSeries());
-$("loadEpisodes").onclick=()=>handle(refreshEpisodes());
-$("selectAll").onclick=()=>{selection.clear();for(const ep of episodes)selection.set(ep.episode,ep);episodeUI();};
-$("clearAll").onclick=()=>{selection.clear();episodeUI();};
-$("selectRange").onclick=()=>{
-  const from=Number($("episodeFrom").value),to=Number($("episodeTo").value);
-  if(!Number.isInteger(from)||!Number.isInteger(to)||from<1||to<from)return show("Khoảng tập không hợp lệ",true);
-  selection.clear();for(const ep of episodes)if(ep.episode>=from&&ep.episode<=to)selection.set(ep.episode,ep);
-  episodeUI();
-};
-$("loadAudit").onclick=()=>handle((async()=>{
-  const {events}=await api("/audit");const root=$("audit");root.replaceChildren();
-  for(const item of events||[]){const row=el("div",new Date(item.created_at).toLocaleString("vi-VN",{timeZone:zone})+" · "+item.action+" · "+JSON.stringify(item.details||{}),"page");root.append(row);}
-  if(!events?.length)root.textContent="Chưa có nhật ký.";
-})());
-$("create").onclick=()=>handle(createCampaign());
-$("genCaption").onclick=()=>handle(genCaption());
-$("refresh").onclick=()=>handle(refreshAll());
-if(new URLSearchParams(location.search).get("connected"))show("OAuth hoàn tất. Đang làm mới kết nối.");
-handle(refreshAll());
+export function initReelsStudio(){
+  if(initialized)return;
+  initialized=true;
+  $("startDate").value=todayVietnam();
+  $("google").onclick=()=>connect("google");
+  $("meta").onclick=()=>connect("meta");
+  $("loadSeries").onclick=()=>handle(refreshSeries());
+  $("loadEpisodes").onclick=()=>handle(refreshEpisodes());
+  $("selectAll").onclick=()=>{selection.clear();for(const ep of episodes)selection.set(ep.episode,ep);resetPlan();episodeUI();};
+  $("clearAll").onclick=()=>{selection.clear();resetPlan();episodeUI();};
+  $("selectRange").onclick=()=>{
+    const from=Number($("episodeFrom").value),to=Number($("episodeTo").value);
+    if(!Number.isInteger(from)||!Number.isInteger(to)||from<1||to<from)return show("Khoảng tập không hợp lệ",true);
+    selection.clear();for(const ep of episodes)if(ep.episode>=from&&ep.episode<=to)selection.set(ep.episode,ep);
+    resetPlan();episodeUI();
+  };
+  $("loadAudit").onclick=()=>handle((async()=>{
+    const {events}=await api("/audit");const root=$("audit");root.replaceChildren();
+    for(const item of events||[]){const row=el("div",new Date(item.created_at).toLocaleString("vi-VN",{timeZone:zone})+" · "+item.action+" · "+JSON.stringify(item.details||{}),"page");root.append(row);}
+    if(!events?.length)root.textContent="Chưa có nhật ký.";
+  })());
+  $("musePrepare").onclick=()=>handle(prepareBatch());
+  $("museGenerate").onclick=()=>handle(autoGenerate());
+  $("museCopy").onclick=async()=>{
+    if(!$("musePrompt").value)await handle(prepareBatch());
+    if(!$("musePrompt").value)return;
+    try{await navigator.clipboard.writeText($("musePrompt").value);show("Đã sao chép lệnh; hãy gửi vào Muse, rồi dán JSON Muse trả về.");}
+    catch{ $("musePrompt").select();show("Chọn và sao chép nội dung lệnh ở ô phía trên.");}
+  };
+  $("museParse").onclick=()=>handle(manualParse());
+  $("museReset").onclick=()=>{if(confirm("Xóa toàn bộ bản nháp Muse chưa lưu?"))resetPlan();};
+  $("create").onclick=()=>handle(createCampaign());
+  $("reelsRefresh").onclick=()=>handle(refreshAll());
+  $("museMode").onchange=()=>{const automatic=$("museMode").value==="gateway";$("museGenerate").classList.toggle("hidden",!automatic);$("musePrepare").classList.toggle("hidden",automatic);};
+  $("museMode").onchange();
+  for(const id of ["startDate","startTime","perDay","spacing","aiTitle","museInstructions","series"]){
+    $(id).addEventListener("change",()=>{if(draftFingerprint&&draftFingerprint!==signature())resetPlan();});
+  }
+  if(new URLSearchParams(location.search).get("connected"))show("OAuth hoàn tất. Đang làm mới kết nối.");
+  renderDrafts();
+}
+export async function refreshReelsStudio(){
+  if(!initialized)initReelsStudio();
+  await refreshAll();
+}
