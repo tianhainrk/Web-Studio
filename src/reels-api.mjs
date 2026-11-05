@@ -111,6 +111,56 @@ export async function reelsRoute(req,res,path){
       const request=await body(req);const prepared=await prepareMuse(request);
       return json(res,200,{prompt:prepared.prompt,entries:prepared.batch,total:prepared.spec.all.length});
     }
+    // A single user request queues every selected video; GitHub Actions performs
+    // expensive Gemini Files API analysis outside the Vercel request lifecycle.
+    if(path==="/ai/video/start"&&method==="POST"){
+      const b=await body(req);
+      const spec=planSpecification({...b,offset:0,limit:Array.isArray(b.episodes)?b.episodes.length:0});
+      if(spec.slots[0] && Date.parse(spec.slots[0])<=Date.now()+60000)
+        return fail(res,400,"Ngày bắt đầu phải ở tương lai ít nhất 1 phút");
+      const googleToken=await getGoogleAccessToken();
+      const files=await driveEpisodes(googleToken,spec.folder);
+      const fileMap=new Map(files.map(x=>[x.episode,x]));
+      const selected=spec.all.map((episode,index)=>{
+        const f=fileMap.get(episode);
+        if(!f)throw Error("Không thể đọc EP"+episode+" trong Drive");
+        if(f.mimeType!=="video/mp4")throw Error("EP"+episode+" không phải MP4");
+        if(!Number.isFinite(Number(f.size))||Number(f.size)<=0||Number(f.size)>512*1024*1024)
+          throw Error("EP"+episode+" vượt giới hạn 512 MiB");
+        return {episode,file_id:f.id,filename:f.name,scheduled_at:spec.slots[index]};
+      });
+      const batch=(await db("reel_ai_batches",{method:"POST",prefer:"return=representation",body:{
+        folder_id:spec.folder,title:spec.name,instructions:spec.instructions,total:selected.length,status:"queued"
+      }}))?.[0];
+      if(!batch?.id)throw Error("Không thể tạo chiến dịch Gemini trong Supabase");
+      try{
+        await db("reel_ai_items",{method:"POST",prefer:"return=minimal",body:selected.map(x=>({
+          batch_id:batch.id,...x,status:"queued"
+        }))});
+      }catch(error){
+        await db("reel_ai_batches?id=eq."+batch.id,{method:"DELETE"});
+        throw error;
+      }
+      await audit("gemini_video_batch_started",{batchId:batch.id,episodes:selected.length});
+      return json(res,202,{batchId:batch.id,total:selected.length,status:"queued"});
+    }
+    if(path==="/ai/video/status"&&method==="GET"){
+      const id=url.searchParams.get("batch")||"";
+      if(!/^[0-9a-f-]{36}$/i.test(id))return fail(res,400,"Batch ID không hợp lệ");
+      const batch=(await db("reel_ai_batches?id=eq."+id+"&select=id,folder_id,title,total,status,error,created_at&limit=1"))?.[0];
+      if(!batch)return fail(res,404,"Không thấy batch Gemini");
+      const items=await db("reel_ai_items?batch_id=eq."+id+"&select=episode,filename,scheduled_at,caption,summary,status,error,attempts&order=episode.asc&limit=300");
+      return json(res,200,{batch,items});
+    }
+    if(path==="/ai/video/retry"&&method==="POST"){
+      const request=await body(req),id=String(request.batchId||"");
+      if(!/^[0-9a-f-]{36}$/i.test(id))return fail(res,400,"Batch ID không hợp lệ");
+      const rows=await db("reel_ai_items?batch_id=eq."+id+"&status=eq.failed&select=id");
+      if(!rows.length)return fail(res,409,"Không có tập bị lỗi để thử lại");
+      await db("reel_ai_items?batch_id=eq."+id+"&status=eq.failed",{method:"PATCH",body:{status:"queued",attempts:0,error:null,updated_at:new Date().toISOString()}});
+      await db("reel_ai_batches?id=eq."+id,{method:"PATCH",body:{status:"queued",updated_at:new Date().toISOString()}});
+      return json(res,200,{ok:true,retry:rows.length});
+    }
     if(path==="/ai/generate"&&method==="POST"){
       const request=await body(req);
       const provider=String(request.provider||"gemini");
