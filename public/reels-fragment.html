@@ -1,0 +1,110 @@
+<section id="reels" class="hidden">
+  <link rel="stylesheet" href="/reels-dashboard.css">
+  <div class="rd-shell">
+    <header class="rd-head">
+      <div><div class="rd-overline">ANPI DRAMA · SOCIAL STUDIO</div><h2>Facebook Reels</h2><p>Quản lý từng Fanpage, lịch đăng và chiến dịch tại một nơi.</p></div>
+      <div class="rd-head-actions"><button id="reelsRefresh" class="rd-quiet" type="button">↻ Làm mới</button><button id="rdConnect" class="rd-quiet" type="button">⚙ Kết nối</button><button id="rdNew" class="rd-primary" type="button">+ Chiến dịch</button></div>
+    </header>
+    <div id="statusPanel" class="rd-config hidden"></div>
+    <p id="notice" class="rd-notice" role="status" aria-live="polite"></p>
+    <div class="rd-pagebar"><div class="rd-pagepick"><span>FANPAGE ĐANG XEM</span><select id="rdPage" aria-label="Fanpage quản lý"><option value="">Chọn Fanpage</option></select></div><div id="rdPageState" class="rd-page-state">Chưa chọn Fanpage</div></div>
+    <div class="rd-metrics">
+      <div class="rd-metric"><span>Lịch hôm nay</span><strong id="rdTodayCount">0</strong><small id="rdTodayHint">Giờ Việt Nam</small></div>
+      <div class="rd-metric"><span>Đã đăng hôm nay</span><strong id="rdTodayPublished">0</strong><small>Đang đối soát Meta</small></div>
+      <div class="rd-metric"><span>Đang chờ</span><strong id="rdPending">0</strong><small>Tập chưa đến giờ</small></div>
+      <div class="rd-metric"><span>Lỗi cần xử lý</span><strong id="rdFailed">0</strong><small>Bài đăng thất bại</small></div>
+    </div>
+    <nav class="rd-nav" aria-label="Quản lý Facebook Reels">
+      <button type="button" data-rd-view="overview" class="active">Tổng quan</button>
+      <button type="button" data-rd-view="calendar">Lịch đăng</button>
+      <button type="button" data-rd-view="campaigns">Chiến dịch</button>
+    </nav>
+    <div id="rdOverview" class="rd-view">
+      <div class="rd-section-title"><div><h3>Lịch 7 ngày</h3><p>Phân bổ bài đăng cho Fanpage được chọn</p></div><button id="rdOpenCalendar" class="rd-quiet" type="button">Xem lịch đầy đủ</button></div>
+      <div id="rdWeek" class="rd-week"></div>
+      <div class="rd-section-title"><div><h3>Bài đăng sắp tới</h3><p>Ưu tiên những bài cần theo dõi</p></div></div>
+      <div id="rdUpcoming" class="rd-list"></div>
+    </div>
+    <div id="rdCalendar" class="rd-view hidden">
+      <div class="rd-section-title"><div><h3>Lịch đăng chi tiết</h3><p>Chọn ngày để xem thời gian cụ thể của từng tập</p></div><label class="rd-inline-date">Ngày <input id="rdCalendarDate" type="date"></label></div>
+      <div id="rdCalendarSummary" class="rd-calendar-summary"></div>
+      <div id="rdCalendarItems" class="rd-list"></div>
+    </div>
+    <div id="rdCampaignsView" class="rd-view hidden">
+      <div class="rd-section-title"><div><h3>Chiến dịch của Page</h3><p>Không hiển thị lẫn lịch của các Fanpage khác</p></div></div>
+      <div id="rdCampaignList" class="rd-list"></div>
+    </div>
+  </div>
+
+  <dialog id="rdConnectDialog" class="rd-dialog" aria-labelledby="rdConnectTitle">
+    <div class="rd-dialog-head"><div><span class="rd-overline">TÀI KHOẢN</span><h3 id="rdConnectTitle">Kết nối và Fanpage</h3></div><button class="rd-x" data-rd-close="rdConnectDialog" type="button" aria-label="Đóng">×</button></div>
+    <div class="rd-dialog-body">
+      <p class="muted">Kết nối Google Drive để lấy phim, Meta để đăng lên Fanpage. OAuth được xử lý ở phía máy chủ.</p>
+      <div class="rd-actions"><button id="google" type="button">+ Google Drive</button><button id="meta" type="button">+ Meta/Facebook</button></div>
+      <div id="pages" class="rd-list"></div>
+      <div class="rd-advanced"><button id="resumeVideoBatch" class="rd-quiet" type="button">Xem hàng đợi Gemini cũ</button><button id="videoRetry" class="rd-quiet hidden" type="button">Thử lại Gemini</button><button id="videoCancel" class="rd-danger hidden" type="button">Hủy hàng đợi Gemini cũ</button></div>
+      <button id="loadAudit" class="rd-quiet" type="button">Xem nhật ký thao tác</button><div id="audit" class="rd-audit muted"></div>
+    </div>
+  </dialog>
+
+  <dialog id="rdComposer" class="rd-dialog rd-dialog-large" aria-labelledby="rdComposerTitle">
+    <div class="rd-dialog-head"><div><span class="rd-overline">TẠO CHIẾN DỊCH</span><h3 id="rdComposerTitle">Đăng Reels bằng AI</h3></div><button class="rd-x" data-rd-close="rdComposer" type="button" aria-label="Đóng">×</button></div>
+    <div class="rd-wizard-nav"><span id="rdWizardOne" class="active">1 · Chọn phim</span><span id="rdWizardTwo">2 · AI lên kế hoạch</span><span id="rdWizardThree">3 · Duyệt lịch</span></div>
+    <div class="rd-dialog-body">
+      <div id="rdStepPick">
+        <div class="rd-block-header"><div><h4>Kho phim Google Drive</h4><p>Chọn thư mục và những tập cần đăng</p></div><button id="loadSeries" class="rd-quiet" type="button">↻ Thư mục</button></div>
+        <div class="rd-field"><label for="series">Phim / Collection ID</label><select id="series"><option value="">Chọn phim</option></select></div>
+        <div class="rd-selection-controls"><button id="loadEpisodes" type="button" class="rd-quiet">Tải lại tập</button><button id="selectAll" type="button" class="rd-quiet">Chọn tất cả</button><button id="clearAll" type="button" class="rd-quiet">Bỏ chọn</button></div>
+        <div class="rd-range"><label>Từ tập<input id="episodeFrom" type="number" min="1" value="1"></label><label>Đến tập<input id="episodeTo" type="number" min="1" value="10"></label><button id="selectRange" class="rd-quiet" type="button">Chọn khoảng</button></div>
+        <div class="rd-selection-heading"><strong id="selection">Đã chọn 0 tập</strong><span>Mỗi lần tối đa 300 tập</span></div>
+        <div id="episodes" class="rd-episodes"></div>
+        <div class="rd-dialog-footer"><span class="muted">Tập chọn được kiểm tra với Drive trước khi lưu chiến dịch.</span><button id="rdToAi" type="button" class="rd-primary">Tiếp tục →</button></div>
+      </div>
+      <div id="rdStepAi" class="hidden">
+        <div class="rd-intro"><h4>AI tự lập toàn bộ lịch đăng</h4><p>Một lệnh cho toàn bộ tập, tối thiểu 10 tập/ngày (nếu phim có ít nhất 10 tập). AI đề xuất giờ theo đặc điểm Fanpage; bạn được kiểm tra trước khi lưu.</p></div>
+        <div class="rd-four-fields">
+          <label>AI thực hiện<select id="planProvider"><option value="muse" selected>Muse (Google Drive đã kết nối)</option><option value="gemini">Gemini (chỉ metadata)</option></select></label>
+          <label>Fanpage sẽ đăng<select id="pageSelect"><option value="">Chọn Fanpage</option></select></label>
+          <label>Ngày bắt đầu<input id="startDate" type="date"></label>
+          <label>Nguồn nội dung cho caption<select id="captionSource"><option value="connected_drive" selected>Muse xem MP4 qua Drive</option><option value="metadata">Tên phim và số tập</option></select></label>
+        </div>
+        <div id="rdAiBalance" class="rd-ai-balance"></div>
+        <div class="rd-dialog-footer"><button id="rdBackPick" class="rd-quiet" type="button">← Chọn lại tập</button><div class="rd-actions"><button id="musePrepare" class="rd-primary" type="button">Tạo lệnh AI cho toàn bộ tập</button><button id="museGenerate" class="rd-primary hidden" type="button">Tạo caption</button></div></div>
+      </div>
+      <div id="rdStepReview" class="hidden">
+        <div id="museProgress" class="rd-msg muted">Nhập kết quả AI để kiểm tra chiến dịch.</div>
+        <div id="rdMuseImport">
+          <div class="rd-compact-actions"><button id="museCopy" class="rd-primary" type="button">Sao chép lệnh Muse</button><label class="rd-file-cta">Nhập JSON Muse<input id="museJsonFile" type="file" accept=".json,application/json"></label><button id="rdShowPrompt" class="rd-quiet" type="button">Xem lệnh</button></div>
+          <div id="rdPromptPanel" class="hidden"><textarea id="musePrompt" rows="7" readonly aria-label="Lệnh Muse"></textarea></div>
+          <div id="rdJsonPanel" class="hidden"><textarea id="museReply" rows="4" placeholder='{"items":[{"episode":1,"scheduledAt":"...","caption":"..."}]}'></textarea><button id="museParse" class="rd-quiet" type="button">Kiểm tra JSON</button></div>
+        </div>
+        <div id="reviewSummary" class="rd-review-summary"></div>
+        <div class="rd-block-header"><div><h4>Kiểm tra lịch và caption</h4><p id="museDraftCount">Chưa có caption.</p></div><div class="rd-actions"><button id="rdDaysToggle" class="rd-quiet" type="button">Theo ngày</button><button id="museReset" class="rd-quiet" type="button">Xóa bản nháp</button></div></div>
+        <div id="rdDraftDays" class="rd-draft-days"></div>
+        <div id="musePreview" class="rd-preview"></div>
+        <div class="rd-table-page"><button id="rdPrevDraft" class="rd-quiet" type="button">‹</button><span id="rdDraftPagination"></span><button id="rdNextDraft" class="rd-quiet" type="button">›</button></div>
+        <div class="rd-dialog-footer"><button id="rdBackAi" class="rd-quiet" type="button">← Lập lịch</button><div class="rd-approve"><span id="reviewHint" class="muted"></span><button id="create" class="rd-primary" type="button" disabled>Duyệt và lưu chiến dịch</button></div></div>
+      </div>
+    </div>
+    <!-- Non-visible compatibility fields: existing API shapes keep working -->
+    <div class="hidden" aria-hidden="true">
+      <input id="campaign" type="text"><input id="aiTitle" type="text"><input id="startTime" type="time" value="07:15"><input id="perDay" type="number" value="10"><input id="spacing" type="number" value="60">
+      <textarea id="museInstructions"></textarea><select id="museMode"><option value="manual" selected>Manual</option><option value="gateway">Gateway</option></select>
+    </div>
+  </dialog>
+
+  <dialog id="rdJobDialog" class="rd-dialog" aria-labelledby="rdJobTitle">
+    <div class="rd-dialog-head"><div><span class="rd-overline">BÀI ĐĂNG</span><h3 id="rdJobTitle">Chi tiết lịch Reels</h3></div><button class="rd-x" data-rd-close="rdJobDialog" type="button" aria-label="Đóng">×</button></div>
+    <div class="rd-dialog-body">
+      <p id="rdJobMeta" class="muted"></p>
+      <label class="rd-field">Ngày giờ đăng (Việt Nam)<input id="rdJobTime" type="datetime-local"></label>
+      <label class="rd-field">Caption<textarea id="rdJobCaption" rows="6"></textarea></label>
+      <p id="rdJobStatus" class="muted"></p>
+      <div class="rd-dialog-footer"><button id="rdJobCancel" class="rd-danger" type="button">Hủy lịch</button><div class="rd-actions"><button id="rdJobReconcile" class="rd-quiet" type="button">Đối soát Meta</button><button id="rdJobSave" class="rd-primary" type="button">Lưu thay đổi</button></div></div>
+    </div>
+  </dialog>
+  <dialog id="rdCaptionDialog" class="rd-dialog" aria-labelledby="rdCaptionTitle">
+    <div class="rd-dialog-head"><div><span class="rd-overline">BẢN NHÁP</span><h3 id="rdCaptionTitle">Chỉnh caption và giờ đăng</h3></div><button class="rd-x" data-rd-close="rdCaptionDialog" type="button" aria-label="Đóng">×</button></div>
+    <div class="rd-dialog-body"><label class="rd-field">Giờ đăng (Việt Nam)<input id="rdDraftTime" type="datetime-local"></label><label class="rd-field">Caption<textarea id="rdDraftCaption" rows="7" maxlength="2200"></textarea></label><p id="rdDraftChar" class="muted"></p><div class="rd-dialog-footer"><button data-rd-close="rdCaptionDialog" type="button">Đóng</button><button id="rdDraftSave" class="rd-primary" type="button">Lưu bản nháp</button></div></div>
+  </dialog>
+</section>
