@@ -74,7 +74,7 @@ export async function reelsRoute(req,res,path){
         }
       }
       await audit("oauth_connected",{provider});
-      return redirect(res,origin(req)+"/reels.html?connected="+provider);
+      return redirect(res,origin(req)+"/?connected="+encodeURIComponent(provider)+"#reels");
     }
     if(path==="/pages"&&method==="GET"){
       const pages=await db("reel_pages?select=page_id,name,active,updated_at&order=name.asc");
