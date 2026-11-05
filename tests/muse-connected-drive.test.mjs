@@ -50,7 +50,7 @@ test("Muse is default, JSON file import and safe Gemini cancellation are present
   assert.match(client,/museReadDrive:/);
   assert.match(client,/async function cancelVideoBatch/);
   assert.match(api,/\/ai\/video\/cancel/);
-  assert.match(api,/request\.museReadDrive===true/);
+  assert.match(api,/request\.aiSchedule===true/);
   assert.doesNotMatch(workflow,/cron:/);
   assert.match(workflow,/ENABLE_GEMINI_VIDEO_WORKER/);
 });
