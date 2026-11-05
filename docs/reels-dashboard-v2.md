@@ -5,9 +5,9 @@ Trang: `/#reels`. Reels vẫn là một tab trong ứng dụng chính, không m�
 ## Giao diện mới
 
 - **Fanpage đang xem:** đổi Page qua dropdown. Dashboard tính chỉ số và xem các chiến dịch/bài đăng của đúng Page đó, không trộn lẫn Page khác.
-- **Tổng quan:** số bài có lịch hôm nay, bài đã đăng hôm nay, bài đang chờ, bài lỗi; lịch 7 ngày và danh sách bài sắp đăng.
-- **Lịch đăng:** chọn ngày, xem từng bài theo giờ Việt Nam; mở popup để sửa giờ/caption nếu trạng thái vẫn queued, hủy lịch hoặc đối soát Meta.
-- **Chiến dịch:** danh sách ngắn theo Page, chọn để mở lịch liên quan.
+- **Tổng quan:** số bài có lịch hôm nay, bài đã đăng hôm nay, bài đang chờ, bài lỗi; bấm trực tiếp một trong **7 ô ngày** để mở lịch cụ thể của ngày đó ngay dưới các ô. Khi mở chi tiết ngày, phần sắp tới được ẩn để trang không bị dài. Nút **‹ / ›** chuyển tuần trước hoặc tiếp theo.
+- **Không còn tab Lịch đăng riêng**. Danh sách ngày hiển thị giờ Việt Nam; bấm vào bài để mở popup sửa giờ/caption nếu queued, hủy lịch hoặc đối soát Meta.
+- **Chiến dịch:** danh sách ngắn theo Page, chọn để nhảy thẳng tới ngày tương ứng ngay trong tab Tổng quan.
 - **Kết nối:** popup riêng cho OAuth Drive/Meta, bật/tắt Page và nhật ký.
 - **+ Chiến dịch:** popup 3 bước. Bước 1 chọn phim/tập; bước 2 **chỉ có bốn trường hiển thị**: AI thực hiện, Fanpage sẽ đăng, Ngày bắt đầu, Nguồn nội dung cho caption; bước 3 nhập JSON, xem lịch/caption tối đa 12 hàng/trang, sửa qua popup và duyệt.
 
@@ -46,7 +46,7 @@ Mặc định dùng **Muse với Google Drive đã kết nối**; Gemini chỉ l
 3. Điền bốn trường AI → **Tạo lệnh AI cho toàn bộ tập**. Gửi vào Muse có Google Drive đã kết nối.
 4. Tải file JSON Muse trả về → **Nhập JSON Muse**. Website kiểm tra đủ tập và thời gian.
 5. Xem phân bổ từng ngày, mở popup chỉnh caption/giờ, nhấn **Duyệt và lưu chiến dịch**.
-6. Theo dõi trong **Lịch đăng**, chỉnh bài queued, hủy hoặc đối soát Meta.
+6. Theo dõi ngay trong **Tổng quan** → chọn ô ngày để xem giờ đăng và danh sách tập. Dùng popup từng bài để chỉnh bài queued, hủy hoặc đối soát Meta. Chuyển sang tuần tiếp theo để xem các ngày ngoài 7 ngày đầu.
 
 ## Lưu ý vận hành
 
@@ -54,3 +54,9 @@ Mặc định dùng **Muse với Google Drive đã kết nối**; Gemini chỉ l
 - Meta worker chạy theo cron nên giờ thực tế có thể trễ vài phút. Đăng nhiều bài mỗi ngày có thể ảnh hưởng chất lượng tiếp cận; theo dõi Page Insights để điều chỉnh chiến lược.
 - Trang có thể hiển thị lịch từng Page từ Supabase. Nếu Page có hàng chục nghìn bài, cần tối ưu thêm truy vấn phân trang phía server.
 - Không gửi API key, cookie Muse, Google refresh token hoặc Meta token cho AI qua prompt. Chỉ gửi folder ID/file ID đã chọn và dữ liệu lịch.
+
+## Tối ưu màn hình tự động (PC và điện thoại)
+
+Layout dùng CSS responsive, tự nhận theo **chiều rộng màn hình/viewport**, không cần người dùng chọn PC hay mobile hoặc phụ thuộc user-agent. Trên PC rộng, 7 ngày xếp trên một hàng. Trên tablet, danh sách ngày có thể cuộn ngang. Trên điện thoại, các ô ngày là thanh vuốt ngang với chỉ dẫn và nút chuyển tuần; các bài đăng xếp dọc theo thông tin thời gian, caption và trạng thái. Popup chiếm gần toàn màn hình nhỏ, có vùng cuộn riêng, trường nhập đủ lớn để tránh tự phóng trên iPhone, và tôn trọng vùng an toàn cuối màn hình. Phím tab và aria-pressed hỗ trợ sử dụng bằng bàn phím.
+
+Giữ nguyên số liệu Supabase, OAuth và worker Meta. Không tạo bảng mới, không đổi lịch cũ khi thay đổi giao diện.

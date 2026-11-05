@@ -367,19 +367,32 @@
     </div>
     <nav class="rd-nav" aria-label="Quản lý Facebook Reels">
       <button type="button" data-rd-view="overview" class="active">Tổng quan</button>
-      <button type="button" data-rd-view="calendar">Lịch đăng</button>
       <button type="button" data-rd-view="campaigns">Chiến dịch</button>
     </nav>
     <div id="rdOverview" class="rd-view">
-      <div class="rd-section-title"><div><h3>Lịch 7 ngày</h3><p>Phân bổ bài đăng cho Fanpage được chọn</p></div><button id="rdOpenCalendar" class="rd-quiet" type="button">Xem lịch đầy đủ</button></div>
-      <div id="rdWeek" class="rd-week"></div>
-      <div class="rd-section-title"><div><h3>Bài đăng sắp tới</h3><p>Ưu tiên những bài cần theo dõi</p></div></div>
-      <div id="rdUpcoming" class="rd-list"></div>
-    </div>
-    <div id="rdCalendar" class="rd-view hidden">
-      <div class="rd-section-title"><div><h3>Lịch đăng chi tiết</h3><p>Chọn ngày để xem thời gian cụ thể của từng tập</p></div><label class="rd-inline-date">Ngày <input id="rdCalendarDate" type="date"></label></div>
-      <div id="rdCalendarSummary" class="rd-calendar-summary"></div>
-      <div id="rdCalendarItems" class="rd-list"></div>
+      <div class="rd-section-title rd-week-header">
+        <div><h3>Lịch đăng theo ngày</h3><p>Nhấn vào một ngày để xem giờ đăng và từng tập ngay bên dưới</p></div>
+        <div class="rd-week-actions" aria-label="Điều hướng lịch">
+          <button id="rdPrevWeek" class="rd-quiet" type="button" aria-label="7 ngày trước">‹</button>
+          <button id="rdThisWeek" class="rd-quiet" type="button">Hôm nay</button>
+          <span id="rdWeekRange" class="rd-week-range"></span>
+          <button id="rdNextWeek" class="rd-quiet" type="button" aria-label="7 ngày tiếp theo">›</button>
+        </div>
+      </div>
+      <div id="rdWeek" class="rd-week" aria-label="Chọn ngày xem lịch đăng"></div>
+      <p class="rd-week-hint">Vuốt ngang để xem đủ 7 ngày, hoặc dùng nút ‹ › để chuyển tuần.</p>
+      <section id="rdDayDetail" class="rd-day-detail hidden" aria-labelledby="rdDayTitle">
+        <div class="rd-section-title rd-day-detail-head">
+          <div><h3 id="rdDayTitle">Lịch đăng trong ngày</h3><p id="rdDaySubtitle">Danh sách bài theo giờ Việt Nam</p></div>
+          <button id="rdCloseDay" class="rd-quiet" type="button">Đóng chi tiết</button>
+        </div>
+        <div id="rdCalendarSummary" class="rd-calendar-summary"></div>
+        <div id="rdCalendarItems" class="rd-list"></div>
+      </section>
+      <div id="rdUpcomingSection">
+        <div class="rd-section-title"><div><h3>Bài đăng sắp tới</h3><p>Ưu tiên những bài cần theo dõi</p></div></div>
+        <div id="rdUpcoming" class="rd-list"></div>
+      </div>
     </div>
     <div id="rdCampaignsView" class="rd-view hidden">
       <div class="rd-section-title"><div><h3>Chiến dịch của Page</h3><p>Không hiển thị lẫn lịch của các Fanpage khác</p></div></div>

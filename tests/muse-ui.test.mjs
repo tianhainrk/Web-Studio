@@ -13,7 +13,8 @@ test("Anpi Drama keeps original movie tabs and embedded Reels dashboard",()=>{
   assert.match(html,/data-tab="reels"/);
   assert.match(html,/id="reels" class="hidden"/);
   assert.match(html,/id="rdOverview"/);
-  assert.match(html,/id="rdCalendar"/);
+  assert.doesNotMatch(html,/id="rdCalendar"/);
+  assert.doesNotMatch(html,/data-rd-view="calendar"/);
   assert.match(html,/id="rdCampaignsView"/);
   assert.doesNotMatch(html,/href="\/reels\.html"/);
   assert.match(app,/refreshReelsStudio\(\)/);
@@ -26,8 +27,8 @@ test("all HTML IDs remain unique, legacy URL redirects into native tab",()=>{
   assert.match(reels,/export async function refreshReelsStudio\(/);
   assert.match(legacy,/#reels/);
 });
-test("page-scoped overview, calendar and detailed Meta popups exist",()=>{
-  for(const id of ["rdPage","rdTodayCount","rdTodayPublished","rdPending","rdFailed","rdWeek","rdCalendarItems","rdCampaignList","rdJobDialog","rdConnectDialog","rdComposer"]){
+test("page-scoped overview, inline day detail and detailed Meta popups exist",()=>{
+  for(const id of ["rdPage","rdTodayCount","rdTodayPublished","rdPending","rdFailed","rdWeek","rdDayDetail","rdDayTitle","rdCalendarItems","rdPrevWeek","rdNextWeek","rdThisWeek","rdWeekRange","rdCloseDay","rdCampaignList","rdJobDialog","rdConnectDialog","rdComposer"]){
     assert.match(html,new RegExp('id="'+id+'"'));
   }
   assert.match(reels,/pageId=/);
@@ -61,4 +62,36 @@ test("71+ episode preview is paginated and editable in popup",()=>{
   assert.match(reels,/api\("\/muse\/parse"/);
   assert.match(reels,/api\("\/campaigns\/create"/);
   assert.match(reels,/if\(!confirm\(/);
+});
+
+test("selected days open their schedules inline, with accessible day cards and week paging",()=>{
+  assert.match(html,/id="rdOverview"/);
+  assert.match(html,/id="rdDayDetail" class="rd-day-detail hidden"/);
+  assert.match(html,/id="rdWeek" class="rd-week"/);
+  assert.match(html,/id="rdWeekRange"/);
+  assert.doesNotMatch(html,/>Lịch đăng<\/button>/);
+  assert.doesNotMatch(html,/id="rdOpenCalendar"/);
+  assert.doesNotMatch(html,/id="rdCalendarDate"/);
+  assert.match(reels,/function selectDay\(date,/);
+  assert.match(reels,/function shiftWeek\(delta\)/);
+  assert.match(reels,/card\.setAttribute\("aria-pressed"/);
+  assert.match(reels,/card\.setAttribute\("aria-controls","rdDayDetail"\)/);
+  assert.match(reels,/card\.onclick=\(\)=>selectDay\(target\)/);
+  assert.match(reels,/rdDayDetail"\)\.classList\.toggle\("hidden",!hasSelection\)/);
+  assert.match(reels,/rdUpcomingSection"\)\.classList\.toggle\("hidden",hasSelection\)/);
+  assert.match(reels,/selectDay\(vnDate\(target\)\)/);
+  assert.doesNotMatch(reels,/setView\("calendar"\)/);
+});
+test("responsive desktop/tablet/mobile CSS adapts automatically without user-agent sniffing",()=>{
+  assert.match(css,/@media\(min-width:1400px\)/);
+  assert.match(css,/@media\(max-width:1024px\)/);
+  assert.match(css,/@media\(max-width:720px\)/);
+  assert.match(css,/@media\(max-width:380px\)/);
+  assert.match(css,/scroll-snap-type:x mandatory/);
+  assert.match(css,/grid-auto-flow:column/);
+  assert.match(css,/env\(safe-area-inset-bottom\)/);
+  assert.match(css,/100dvh/);
+  assert.match(css,/rd-day\.selected/);
+  assert.match(html,/rd-week-hint/);
+  assert.doesNotMatch(reels,/navigator\.userAgent/);
 });
