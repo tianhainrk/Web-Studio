@@ -22,6 +22,14 @@ test("Muse response parser accepts exact caption and schedule and rejects mismat
                {episode:2,filename:"EP002.mp4",scheduledAt:"2026-12-20T13:00:00.000Z"}];
   const rows=batch.map(x=>({episode:x.episode,scheduledAt:x.scheduledAt,caption:"Tập "+x.episode+" · Hãy đón xem diễn biến tiếp theo."}));
   assert.deepEqual(validateMuseReply(JSON.stringify({items:rows}),batch),rows);
+  assert.deepEqual(validateMuseReply(JSON.stringify({items:[
+    {...rows[0],scheduledAt:"2026-12-20T12:30:00.000Z"},
+    {...rows[1],scheduledAt:"2026-12-20T13:30:00.000Z"}
+  ]}),batch).map(x=>x.scheduledAt),["2026-12-20T12:30:00.000Z","2026-12-20T13:30:00.000Z"]);
+  assert.throws(()=>validateMuseReply(JSON.stringify({items:[
+    {...rows[0],scheduledAt:"2026-12-20T13:30:00.000Z"},
+    {...rows[1],scheduledAt:"2026-12-20T13:00:00.000Z"}
+  ]}),batch));
   assert.throws(()=>validateMuseReply(JSON.stringify({items:rows.slice(0,1)}),batch));
   assert.throws(()=>validateMuseReply(JSON.stringify({items:[{...rows[0],episode:2},rows[1]]}),batch));
   assert.throws(()=>validateMuseReply(JSON.stringify({items:[{...rows[0],scheduledAt:"2026-12-21T12:00:00.000Z"},rows[1]]}),batch));
