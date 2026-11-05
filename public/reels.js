@@ -146,37 +146,44 @@ async function prepareBatch(){
   $("museProgress").textContent="Đã tạo lệnh cho "+data.entries.length+" tập, bắt đầu từ EP"+data.entries[0].episode+".";
   return data;
 }
-function mergeDraftPlan(plan){
-  if(!currentBatch||!Array.isArray(plan)||plan.length!==currentBatch.entries.length)throw Error("Kết quả Muse không trùng lô đang chọn");
+function mergeDraftPlan(plan,entries=currentBatch?.entries){
+  if(!Array.isArray(entries)||!Array.isArray(plan)||plan.length!==entries.length)throw Error("AI trả số tập không đúng với dữ liệu Drive");
   for(let i=0;i<plan.length;i++){
-    if(Number(plan[i].episode)!==Number(currentBatch.entries[i].episode))throw Error("Muse trả sai thứ tự tập");
-    drafts.set(Number(plan[i].episode),{...plan[i]});
+    const n=Number(plan[i].episode);
+    if(n!==Number(entries[i].episode)||!selection.has(n))throw Error("AI trả tập ngoài danh sách đã chọn: "+n);
   }
+  if(!draftFingerprint)draftFingerprint=signature();
+  for(const item of plan)drafts.set(Number(item.episode),{...item});
   $("museReply").value="";currentBatch=null;renderDrafts();
   const next=pendingOffset();
-  $("museProgress").textContent=next<0?"Đã có đủ bản nháp. Kiểm tra giờ và caption rồi duyệt.":"Đã nhận bản nháp. Nhấn Tạo kế hoạch với Muse / Tạo lệnh để xử lý lô tiếp theo.";
+  $("museProgress").textContent=next<0?"Đã có đủ "+selection.size+"/"+selection.size+" tập. Kiểm tra và duyệt.":"Đã hoàn thành "+drafts.size+"/"+selection.size+" tập. Còn "+(selection.size-drafts.size)+" tập.";
 }
 async function autoGenerate(){
+  if(!selection.size||!$("series").value)throw Error("Hãy chọn các tập trên Google Drive trước");
   checkFreshness();
   let offset=pendingOffset();
-  if(offset<0)return show("Bản nháp đã đủ. Nhấn Xóa bản nháp nếu muốn tạo mới.");
+  if(offset<0)return show("Đã đủ "+selection.size+" caption. Có thể kiểm tra và duyệt.");
+  const provider=$("planProvider").value;
+  if(provider==="muse"&&$("museMode").value!=="gateway")throw Error("Hãy chọn Muse2API tự động hoặc dán JSON của Muse");
   const button=$("museGenerate");button.disabled=true;
   try{
     while(offset>=0){
-      $("museProgress").textContent="Đang yêu cầu Muse xử lý lô bắt đầu từ tập "+getInputs().episodes[offset]+"...";
-      const data=await api("/muse/generate",getInputs(offset));
-      currentBatch={offset,entries:data.plan};
-      mergeDraftPlan(data.plan);
+      $("museProgress").textContent="Đang tạo "+drafts.size+"/"+selection.size+" tập bằng "+(provider==="gemini"?"Gemini":"Muse")+"; tiếp theo EP"+getInputs().episodes[offset];
+      const data=await api(provider==="gemini"?"/gemini/generate":"/muse/generate",getInputs(offset));
+      currentBatch={offset,entries:data.entries||data.plan};
+      mergeDraftPlan(data.plan,data.entries||currentBatch.entries);
       offset=pendingOffset();
     }
-    show("Muse đã tạo xong bản nháp. Vui lòng xem lại caption và lịch từng tập trước khi lưu.");
-  }finally{button.disabled=false;}
+    show("Đã tạo đủ "+selection.size+" tập bằng AI. Vui lòng duyệt caption và giờ đăng.");
+  }finally{button.disabled=false;renderDrafts();}
 }
 async function manualParse(){
-  if(!currentBatch){await prepareBatch();}
-  if(!currentBatch)return;
-  const data=await api("/muse/parse",{...getInputs(currentBatch.offset),reply:$("museReply").value});
-  mergeDraftPlan(data.plan);show("Đã nhập kết quả Muse; kiểm tra từng tập.");
+  const reply=$("museReply").value.trim();
+  if(!reply)throw Error("Bạn chưa dán JSON Muse trả về");
+  checkFreshness();
+  const data=await api("/muse/parse",{...getInputs(),reply});
+  mergeDraftPlan(data.plan,data.entries);
+  show("Đã nhập "+data.plan.length+" tập từ Muse. Tổng số hoàn thành "+drafts.size+"/"+selection.size+".");
 }
 async function createCampaign(){
   checkFreshness();
@@ -184,7 +191,7 @@ async function createCampaign(){
   const plan=input.episodes.map(n=>drafts.get(n));
   if(!input.pageId||!input.folderId||!input.episodes.length)return show("Cần chọn Fanpage, phim và ít nhất một tập.",true);
   if(plan.some(x=>!x))return show("Muse chưa tạo đủ bản nháp cho toàn bộ tập.",true);
-  if(!confirm("Duyệt "+plan.length+" tập để lưu lịch đăng lên Fanpage? Muse chỉ tạo bản nháp, worker sẽ đăng khi đến lịch."))return;
+  if(!confirm("Duyệt "+plan.length+" tập để lưu lịch đăng trên Fanpage? AI chỉ lập bản nháp, worker xử lý khi đến lịch."))return;
   const data=await api("/campaigns/create",{...input,plan});
   show("Đã lưu chiến dịch "+data.count+" tập vào Supabase.");
   resetPlan();await refreshReports();
