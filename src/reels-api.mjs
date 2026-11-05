@@ -1,4 +1,4 @@
-import {prepareMuse,validateMuseReply,validateApprovedPlan,requestMusePlan} from "./muse-planner.mjs";
+import {prepareMuse,parsePlanItems,validateMuseReply,validateApprovedPlan,requestMusePlan,requestGeminiPlan} from "./muse-planner.mjs";
 import {oauthState,verifyOauthState,encryptToken,db,audit,clientConfig,fetchJSON,getGoogleAccessToken,driveSeries,driveEpisodes,scheduleEpisodes,validId,requiredConfig} from "./reels-core.mjs";
 const graph="https://graph.facebook.com/v26.0";
 const permittedScopes="pages_show_list,pages_read_engagement,pages_manage_posts";
@@ -118,9 +118,21 @@ export async function reelsRoute(req,res,path){
       return json(res,200,{plan,provider:"muse2api",status:"draft"});
     }
     if(path==="/muse/parse"&&method==="POST"){
-      const request=await body(req);const prepared=await prepareMuse(request);
+      const request=await body(req);
+      const items=parsePlanItems(String(request.reply||""));
+      const selected=Array.isArray(request.episodes)?[...request.episodes].map(Number).sort((a,b)=>a-b):[];
+      const offset=selected.indexOf(Number(items[0]?.episode));
+      if(offset<0||offset+items.length>selected.length)return fail(res,400,"JSON chứa tập ngoài danh sách đã chọn");
+      const prepared=await prepareMuse({...request,offset,limit:items.length});
       const plan=validateMuseReply(String(request.reply||""),prepared.batch);
-      return json(res,200,{plan,provider:"muse_manual",status:"draft"});
+      return json(res,200,{plan,entries:prepared.batch,provider:"muse_manual",status:"draft"});
+    }
+    if(path==="/gemini/generate"&&method==="POST"){
+      const request=await body(req);
+      const prepared=await prepareMuse({...request,limit:Math.min(8,Number(request.limit)||8)},"Gemini");
+      const plan=await requestGeminiPlan(prepared.prompt,prepared.batch);
+      await audit("gemini_plan_drafted",{episodes:plan.map(x=>x.episode),provider:"gemini"});
+      return json(res,200,{plan,entries:prepared.batch,provider:"gemini",status:"draft"});
     }
     if(path==="/campaigns"&&method==="GET"){
       const campaigns=await db("reel_campaigns?select=id,name,page_id,folder_id,start_at,per_day,spacing_minutes,status,created_at&order=created_at.desc&limit=100");
