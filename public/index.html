@@ -132,6 +132,25 @@
 #reels .anpi-plan-item input{font-size:13px}
 #reels #reviewHint{font-size:12px}
 @media(max-width:650px){#reels .anpi-review-summary{grid-template-columns:repeat(3,1fr)}#reels .anpi-review-metric{padding:9px}#reels .anpi-review-metric strong{font-size:20px}}
+
+/* Compact spreadsheet-like review for long-running video analysis. */
+#reels .anpi-plan-list{display:block!important;max-height:560px;overflow:auto;border:1px solid #343951;border-radius:11px}
+#reels .anpi-sheet{border-collapse:separate;border-spacing:0;width:100%;min-width:840px;table-layout:fixed;font-size:12px}
+#reels .anpi-sheet th{position:sticky;top:0;z-index:3;background:#272b44;color:#e6deff;padding:10px 8px;text-align:left;border-bottom:1px solid #4b4b6b}
+#reels .anpi-sheet td{padding:6px 8px;vertical-align:middle;border-bottom:1px solid #292e45;background:#14192a}
+#reels .anpi-sheet tbody tr:nth-child(even) td{background:#1b2032}
+#reels .anpi-sheet .ep-col{width:58px;white-space:nowrap;font-weight:750;color:#e2ceff}
+#reels .anpi-sheet .file-col{width:103px;overflow-wrap:anywhere}
+#reels .anpi-sheet .time-col{width:170px}
+#reels .anpi-sheet .state-col{width:100px}
+#reels .anpi-sheet .source-col{width:180px}
+#reels .anpi-sheet .caption-col{width:auto}
+#reels .anpi-sheet input{font-size:12px;padding:8px 6px;min-width:0;width:100%}
+#reels .anpi-sheet textarea{width:100%;min-height:47px;resize:vertical;padding:7px 9px;font-size:12px;line-height:1.45}
+#reels .anpi-sheet .ep-state{font-size:11px;border-radius:999px;padding:3px 7px;background:#2b3149;display:inline-block}
+#reels .anpi-sheet .ep-state.ready{color:#91dda9}
+#reels .anpi-sheet .ep-state.failed{color:#ff979f}
+@media(max-width:650px){#reels .anpi-plan-list{max-height:520px}}
 </style><script src="https://accounts.google.com/gsi/client" async defer></script></head>
 <body>
 <header>
@@ -337,7 +356,7 @@
 <section class="panel"><h2>2. Chọn phim từ Google Drive</h2><div class="row"><button id="loadSeries" class="small">Tải danh sách thư mục phim</button></div><label class="field">Phim / Collection ID<select id="series"><option value="">Chọn phim</option></select></label><div class="row"><button id="loadEpisodes" class="small">Xem tập</button><button id="selectAll" class="small">Chọn tất cả</button><button id="clearAll" class="small">Bỏ chọn</button></div><div class="grid"><label class="field">Từ tập<input id="episodeFrom" type="number" min="1" value="1"></label><label class="field">Đến tập<input id="episodeTo" type="number" min="1" value="10"></label></div><div class="row"><button id="selectRange" class="small">Chọn khoảng tập</button></div><p class="muted" id="selection">Đã chọn 0 tập</p><div id="episodes" class="episodes"></div></section>
 <section class="panel anpi-muse-panel">
   <div class="row" style="align-items:center;justify-content:space-between"><h2 style="margin:0">3. AI lập lịch và tạo caption</h2><span class="anpi-ai-note">Gemini ưu tiên · Muse dự phòng</span></div>
-  <p class="muted">Tạo caption riêng cho toàn bộ tập đã chọn, đề xuất lịch đăng, xem và chỉnh sửa trước khi lưu chiến dịch. Chế độ này sử dụng tên phim, tập và metadata; chưa đọc nội dung MP4.</p>
+  <p class="muted">Một hướng dẫn áp dụng cho mọi tập đã chọn. Gemini phân tích nội dung MP4 thực tế qua worker; Muse dự phòng hoặc chế độ chỉ dùng metadata. Kết quả được lưu thành bản nháp để bạn kiểm tra trước khi đăng.</p>
   <div class="grid">
     <label class="field">AI thực hiện
       <select id="planProvider"><option value="gemini" selected>Gemini AI (ưu tiên)</option><option value="muse">Muse AI</option></select>
@@ -350,12 +369,21 @@
   </div>
   <div class="grid"><label class="field">Ngày bắt đầu<input id="startDate" type="date"></label><label class="field">Giờ đầu tiên (VN)<input id="startTime" type="time" value="19:00"></label></div>
   <div class="grid"><label class="field">Số tập/ngày<input id="perDay" type="number" min="1" max="24" value="2"></label><label class="field">Giãn cách (phút)<input id="spacing" type="number" min="1" max="1440" value="60"></label></div>
-  <label class="field">Phong cách caption<textarea id="museInstructions" maxlength="1200" rows="3" placeholder="Tự nhiên, khơi gợi tò mò, không spoil, 2 hashtag."></textarea></label>
-  <div class="row" style="justify-content:space-between">
-    <button id="museGenerate" class="primary">Tạo caption và lịch cho tất cả tập</button>
-    <button id="museReset" class="detail-secondary">Xóa bản nháp</button>
+  <div class="grid">
+    <label class="field">Nguồn nội dung cho caption<select id="captionSource">
+      <option value="video" selected>Đọc nội dung từng MP4 (Gemini)</option>
+      <option value="metadata">Chỉ dựa trên tên phim/tập (nhanh)</option>
+    </select></label>
+    <label class="field">Thực thi hàng loạt
+      <input value="Một prompt duy nhất cho toàn bộ tập đã chọn" readonly aria-label="Một prompt cho toàn bộ tập" />
+    </label>
   </div>
-  <p id="museProgress" class="muted" aria-live="polite">Đã chọn phim và tập? Nhấn Tạo caption và lịch để bắt đầu.</p>
+  <label class="field">Hướng dẫn chung cho toàn bộ tập<textarea id="museInstructions" maxlength="1200" rows="3" placeholder="Viết caption dựa trên cảnh phim thực tế, tự nhiên, không spoil, 2 hashtag."></textarea></label>
+  <div class="row" style="justify-content:space-between">
+    <button id="museGenerate" class="primary">Tạo caption toàn bộ tập đã chọn</button>
+    <button id="museReset" class="detail-secondary">Xóa bản nháp</button><button id="resumeVideoBatch" class="detail-secondary">Khôi phục tiến trình Gemini</button><button id="videoRetry" class="detail-secondary hidden">Thử lại tập lỗi</button>
+  </div>
+  <p id="museProgress" class="muted" aria-live="polite">Chọn tập, nhập một hướng dẫn và nhấn Tạo. Với MP4, tiến độ chạy trong GitHub Actions kể cả khi đóng trang.</p>
   <div id="museManualFields" class="hidden">
     <div class="panel" style="background:#111527;border-color:#3c405a">
       <h3 style="margin:0 0 10px">Muse – tạo hoặc nhập kết quả JSON</h3>
@@ -371,7 +399,7 @@
   <div class="anpi-review-head">
     <div>
       <h3 style="margin:0 0 4px">Kiểm tra lịch và caption từng tập</h3>
-      <p class="muted" style="margin:0">Sửa từng caption hoặc giờ đăng ngay trên thẻ. Chỉ lưu khi đã chuẩn bị đủ các tập.</p>
+      <p class="muted" style="margin:0">Bảng gọn từng dòng như Excel; chỉnh giờ và caption trực tiếp. Chỉ duyệt khi đã đủ toàn bộ tập.</p>
     </div>
   </div>
   <div id="reviewSummary" class="anpi-review-summary" aria-live="polite"></div>
