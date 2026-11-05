@@ -51,14 +51,20 @@ function episodeUI(){
   }
   $("selection").textContent="Đã chọn "+selection.size+" / "+episodes.length+" tập.";
 }
+let episodeLoadSequence=0;
 async function refreshEpisodes(){
-  const folder=$("series").value;if(!folder)return show("Chọn một thư mục phim",true);
+  const folder=$("series").value,sequence=++episodeLoadSequence;
+  selection.clear();episodes=[];resetPlan();episodeUI();
+  if(!folder)return show("Hãy chọn một phim từ danh sách.",true);
+  $("selection").textContent="Đang tải danh sách tập từ Google Drive...";
   const data=await api("/drive/episodes?folder="+encodeURIComponent(folder));
+  if(sequence!==episodeLoadSequence||folder!==$("series").value)return;
   const original=data.episodes||[];episodes=[...new Map(original.map(ep=>[ep.episode,ep])).values()].sort((a,b)=>a.episode-b.episode);selection.clear();resetPlan();episodeUI();
-  if(original.length>episodes.length)show("Drive có "+(original.length-episodes.length)+" file trùng số tập; giao diện chỉ hiển thị 1 lựa chọn mỗi tập.",true);
   const current=series.find(x=>x.id===folder);
-  if(current)$("aiTitle").value=current.title||current.name;
-  show("Tìm thấy "+episodes.length+" tập trong thư mục.");
+  if(current){$("aiTitle").value=current.title||current.name;if(!$("campaign").value.trim())$("campaign").value="Reels "+(current.title||current.name);}
+  if(episodes.length)$("episodeTo").value=Math.min(episodes[episodes.length-1].episode,10);
+  show("Đã tự tải "+episodes.length+" tập"+(original.length>episodes.length?" (ẩn "+(original.length-episodes.length)+" bản trùng).":"."));
+  renderDrafts();
 }
 
 let initialized=false;
@@ -76,7 +82,7 @@ function getInputs(offset=0){
   };
 }
 function signature(){
-  const x=getInputs();delete x.offset;delete x.limit;delete x.name;
+  const x=getInputs();delete x.offset;delete x.limit;delete x.name;delete x.pageId;
   return JSON.stringify(x);
 }
 function resetPlan(){
@@ -100,22 +106,33 @@ function toUTC(value){
   return d.toISOString();
 }
 function renderDrafts(){
-  const root=$("musePreview"),info=$("museDraftCount"),save=$("create");
+  const root=$("musePreview"),info=$("museDraftCount"),save=$("create"),summary=$("reviewSummary"),hint=$("reviewHint");
   if(!root||!info||!save)return;
-  root.replaceChildren();
-  const nums=[...selection.keys()].sort((a,b)=>a-b);
-  info.textContent="Đã chuẩn bị "+nums.filter(n=>drafts.has(n)).length+"/"+nums.length+" tập. Mỗi lô tối đa 8 tập.";
-  save.disabled=!nums.length||nums.some(n=>!drafts.has(n))||!!(draftFingerprint&&draftFingerprint!==signature());
+  root.replaceChildren();summary.replaceChildren();
+  const nums=[...selection.keys()].sort((a,b)=>a-b),ready=nums.filter(n=>drafts.has(n)).length,missing=nums.length-ready;
+  for(const [label,value] of [["Tổng tập",nums.length],["Đã có caption",ready],["Chưa xử lý",missing]]){
+    const tile=el("div","","anpi-review-metric");tile.append(el("span",label),el("strong",String(value)));summary.append(tile);
+  }
+  info.textContent=nums.length?(ready+"/"+nums.length+" tập có bản nháp. "+(missing?"Còn "+missing+" tập chưa xử lý.":"Đã đủ các tập để duyệt.")):"Chọn các tập ở bước 2 để bắt đầu.";
+  const fresh=!draftFingerprint||draftFingerprint===signature();
+  const hasPage=!!$("pageSelect").value,hasName=$("campaign").value.trim().length>=3;
+  save.disabled=!nums.length||!!missing||!fresh||!hasPage||!hasName;
+  hint.textContent=missing?"Thiếu "+missing+" tập":!hasPage?"Chọn Fanpage":!hasName?"Đặt tên chiến dịch":!fresh?"Thông tin đã đổi, cần tạo lại bản nháp":"Đã đủ tập, sẵn sàng duyệt";
   for(const number of nums){
-    const item=drafts.get(number);if(!item)continue;
-    const wrap=el("div","","anpi-plan-item"),header=el("div","","anpi-plan-header");
-    header.append(el("strong","EP"+String(number).padStart(3,"0")));
-    const when=el("input");when.type="datetime-local";when.value=vLocal(item.scheduledAt);
-    when.onchange=()=>{try{item.scheduledAt=toUTC(when.value);show("Đã sửa giờ tập "+number+". Hãy kiểm tra trước khi lưu.");}catch(e){show(e.message,true);}};
-    header.append(when);
-    const label=el("label","Caption tập "+number),area=el("textarea");
-    area.maxLength=2200;area.value=item.caption;area.oninput=()=>{item.caption=area.value;};
-    wrap.append(header,label,area);root.append(wrap);
+    const item=drafts.get(number),wrap=el("article","","anpi-plan-item"+(item?"":" missing"));
+    const header=el("div","","anpi-plan-header"),file=selection.get(number);
+    header.append(el("strong","Tập "+number,"anpi-ep-number"),el("span",item?"Đã chuẩn bị":"Chưa tạo","pill"));
+    wrap.append(header,el("div",file?.name||("EP"+String(number).padStart(3,"0")+".mp4"),"muted"));
+    if(item){
+      const whenLabel=el("label","Ngày và giờ đăng (VN)","field"),when=el("input");
+      when.type="datetime-local";when.value=vLocal(item.scheduledAt);
+      when.onchange=()=>{try{item.scheduledAt=toUTC(when.value);show("Đã sửa giờ tập "+number);}catch(e){show(e.message,true);}};
+      whenLabel.append(when);
+      const captionLabel=el("label","Caption tập "+number,"field"),area=el("textarea"),counter=el("span",item.caption.length+"/2200 ký tự","muted");
+      area.maxLength=2200;area.value=item.caption;area.oninput=()=>{item.caption=area.value;counter.textContent=area.value.length+"/2200 ký tự";};
+      captionLabel.append(area);wrap.append(whenLabel,captionLabel,counter);
+    }else wrap.append(el("p","AI sẽ tạo caption và lịch trong lượt tiếp theo.","muted"));
+    root.append(wrap);
   }
 }
 async function prepareBatch(){
