@@ -228,10 +228,11 @@ async function loadVideoBatch(batchId){
   renderDrafts();
   const completed=data.items.filter(x=>x.status==="ready").length;
   const failed=data.items.filter(x=>x.status==="failed").length;
-  $("museProgress").textContent="Gemini đọc MP4: "+completed+"/"+data.batch.total+" tập hoàn thành"+
+  $("museProgress").textContent=(data.batch.status==="cancelled"?"Hàng đợi Gemini cũ đã được hủy. ":"Gemini cũ: ")+completed+"/"+data.batch.total+" tập hoàn thành"+
     (failed?", "+failed+" tập lỗi.":"")+
     ". Worker GitHub Actions xử lý từng video, không cần giữ trang mở.";
-  $("videoRetry").classList.toggle("hidden",!failed);
+  $("videoRetry").classList.add("hidden");
+  $("videoCancel").classList.toggle("hidden",data.batch.status==="cancelled"||data.batch.status==="completed");
   if(completed+failed===data.batch.total&&videoRefreshTimer){
     clearInterval(videoRefreshTimer);videoRefreshTimer=null;
   }
@@ -288,6 +289,18 @@ async function restoreVideoBatch(){
   if(videoRefreshTimer)clearInterval(videoRefreshTimer);
   videoRefreshTimer=setInterval(()=>{if(videoBatchId)loadVideoBatch(videoBatchId).catch(e=>show(e.message,true));},30000);
   show("Đã khôi phục tiến trình Gemini của "+nums.length+" tập.");
+}
+async function cancelVideoBatch(){
+  const folder=$("series").value;
+  if(!folder)throw Error("Hãy chọn phim trước");
+  const latest=videoBatchId?{batch:{id:videoBatchId}}:await api("/ai/video/latest?folder="+encodeURIComponent(folder));
+  if(!latest.batch?.id)throw Error("Không có hàng đợi Gemini cũ");
+  if(!confirm("Hủy hàng đợi Gemini cũ để không gọi thêm Gemini API? Các phim gốc trong Drive và caption đã có sẽ không bị xóa."))return;
+  const result=await api("/ai/video/cancel",{batchId:latest.batch.id});
+  videoBatchId=latest.batch.id;
+  if(videoRefreshTimer){clearInterval(videoRefreshTimer);videoRefreshTimer=null;}
+  $("videoCancel").classList.add("hidden");
+  show("Đã hủy hàng đợi Gemini cũ ("+result.status+"). Không xóa MP4 gốc.");
 }
 async function retryVideoBatch(){
   if(!videoBatchId)throw Error("Hãy khôi phục tiến trình Gemini trước");
@@ -423,6 +436,13 @@ export function initReelsStudio(){
   $("museGenerate").onclick=()=>handle(autoGenerate());
   $("resumeVideoBatch").onclick=()=>handle(restoreVideoBatch());
   $("videoRetry").onclick=()=>handle(retryVideoBatch());
+  $("videoCancel").onclick=()=>handle(cancelVideoBatch());
+  $("museJsonFile").onchange=()=>handle((async()=>{
+    const file=$("museJsonFile").files?.[0];if(!file)return;
+    if(file.size>250000)throw Error("File JSON Muse vượt giới hạn 250 KB, hãy chia thành nhiều file");
+    const text=await file.text();$("museReply").value=text;
+    show("Đã đọc "+file.name+". Nhấn Nhập kết quả Muse vào bảng để kiểm tra.");
+  })());
   $("museCopy").onclick=async()=>{
     if(!$("musePrompt").value)await handle(prepareBatch(true));
     if(!$("musePrompt").value)return;
@@ -437,15 +457,18 @@ export function initReelsStudio(){
     const muse=$("planProvider").value==="muse",automatic=muse&&$("museMode").value==="gateway";
     $("museManualFields").classList.toggle("hidden",!muse);
     $("museGenerate").classList.toggle("hidden",muse&&!automatic);
-    $("museGenerate").textContent=muse?"Tạo kế hoạch bằng Muse":$("captionSource").value==="video"?"Phân tích MP4 và tạo caption cho toàn bộ tập":"Tạo caption từ metadata cho toàn bộ tập";
+    $("museGenerate").textContent=muse?"Muse2API – caption metadata (không xác nhận xem Drive)":"Gemini – caption từ metadata (có thể tính phí API)";
     $("musePrepare").classList.toggle("hidden",!muse||automatic);
     $("museCopy").classList.toggle("hidden",!muse||automatic);
     $("musePrompt").closest("label").classList.toggle("hidden",!muse||automatic);
     $("museReply").closest("label").classList.toggle("hidden",!muse||automatic);
+    $("museJsonFile").closest("label").classList.toggle("hidden",!muse||automatic);
     $("museParse").classList.toggle("hidden",!muse||automatic);
+    $("captionSource").disabled=!muse||automatic;
+    if(!muse||automatic)$("captionSource").value="metadata";
   }
-  $("planProvider").onchange=()=>{if($("planProvider").value==="muse")$("captionSource").value="metadata";updateProvider();};
-  $("museMode").onchange=updateProvider;
+  $("planProvider").onchange=()=>{if($("planProvider").value==="muse"&&$("museMode").value==="manual")$("captionSource").value="connected_drive";updateProvider();};
+  $("museMode").onchange=()=>{if($("planProvider").value==="muse"&&$("museMode").value==="manual")$("captionSource").value="connected_drive";updateProvider();};
   $("captionSource").onchange=updateProvider;updateProvider();
   for(const id of ["startDate","startTime","perDay","spacing","aiTitle","museInstructions"]){
     $(id).addEventListener("change",()=>{if(draftFingerprint&&draftFingerprint!==signature())resetPlan();});
