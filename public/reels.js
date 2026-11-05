@@ -2,6 +2,7 @@ const $=id=>document.getElementById(id);
 const zone="Asia/Ho_Chi_Minh";
 const VN_OFFSET=7*3600000;
 let initialized=false,pages=[],series=[],episodes=[],jobs=[],campaigns=[],activePage="",view="overview";
+let selectedDay="",weekOffset=0;
 const selection=new Map(),drafts=new Map();
 let draftFingerprint="",currentBatch=null,generating=false,episodeLoadSequence=0;
 let draftPage=0,draftDay="all",draftDaysOpen=false,editingEpisode=null,editingJob=null;
@@ -37,11 +38,26 @@ function startTomorrow(){
 function openDialog(id){$(id).showModal();}
 function closeDialog(id){$(id).close();}
 function setView(next){
-  view=next;
-  for(const n of ["overview","calendar","campaigns"]){
-    $(n==="overview"?"rdOverview":n==="calendar"?"rdCalendar":"rdCampaignsView").classList.toggle("hidden",n!==next);
-    const b=document.querySelector('#reels [data-rd-view="'+n+'"]');if(b)b.classList.toggle("active",n===next);
+  view=next==="campaigns"?"campaigns":"overview";
+  for(const n of ["overview","campaigns"]){
+    $(n==="overview"?"rdOverview":"rdCampaignsView").classList.toggle("hidden",n!==view);
+    const b=document.querySelector('#reels [data-rd-view="'+n+'"]');
+    if(b)b.classList.toggle("active",n===view);
   }
+  renderDashboard();
+}
+function selectDay(date,{scroll=true}={}){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return;
+  selectedDay=date;
+  const from=Date.parse(todayVN()+"T00:00:00+07:00");
+  const to=Date.parse(date+"T00:00:00+07:00");
+  weekOffset=Math.floor((to-from)/(7*86400000));
+  setView("overview");
+  if(scroll)$("rdDayDetail").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function shiftWeek(delta){
+  weekOffset=Math.max(-53,Math.min(53,weekOffset+delta));
+  selectedDay="";
   renderDashboard();
 }
 function wizard(step){
@@ -337,22 +353,39 @@ function renderDashboard(){
   $("rdFailed").textContent=String(all.filter(j=>j.status==="failed").length);
   const page=pages.find(p=>p.page_id===activePage);
   $("rdPageState").textContent=page?(page.active?"Đã kết nối · Có thể đăng":"Page đang tạm tắt"):"Chọn Fanpage để xem lịch";
-  const base=Date.parse(day+"T00:00:00+07:00"),week=$("rdWeek");week.replaceChildren();
+  const base=Date.parse(day+"T00:00:00+07:00")+weekOffset*7*86400000;
+  const week=$("rdWeek");week.replaceChildren();
+  const first=vnDate(new Date(base).toISOString()),last=vnDate(new Date(base+6*86400000).toISOString());
+  $("rdWeekRange").textContent=first.slice(5).split("-").reverse().join("/")+" – "+last.slice(5).split("-").reverse().join("/");
   for(let d=0;d<7;d++){
-    const target=vnDate(new Date(base+d*86400000).toISOString());
+    const timestamp=base+d*86400000;
+    const target=vnDate(new Date(timestamp).toISOString());
     const total=all.filter(j=>vnDate(j.scheduled_at)===target).length;
-    const card=el("button","","rd-day"+(d===0?" today":""));card.type="button";
-    card.append(el("span",new Date(base+d*86400000).toLocaleDateString("vi-VN",{timeZone:zone,weekday:"short",day:"2-digit",month:"2-digit"})),el("strong",String(total)),el("span","bài đăng"));
-    card.onclick=()=>{$("rdCalendarDate").value=target;setView("calendar");};week.append(card);
+    const card=el("button","","rd-day"+(target===day?" today":"")+(target===selectedDay?" selected":""));
+    card.type="button";
+    card.setAttribute("aria-pressed",String(target===selectedDay));
+    card.setAttribute("aria-controls","rdDayDetail");
+    card.setAttribute("aria-label",new Date(timestamp).toLocaleDateString("vi-VN",{timeZone:zone,weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"})+" · "+total+" bài đăng");
+    card.append(el("span",new Date(timestamp).toLocaleDateString("vi-VN",{timeZone:zone,weekday:"short",day:"2-digit",month:"2-digit"})),el("strong",String(total)),el("span","bài đăng"));
+    card.onclick=()=>selectDay(target);
+    week.append(card);
   }
+  $("rdPrevWeek").disabled=weekOffset<=-53;
+  $("rdNextWeek").disabled=weekOffset>=53;
+  const hasSelection=!!selectedDay;
+  $("rdDayDetail").classList.toggle("hidden",!hasSelection);
+  $("rdUpcomingSection").classList.toggle("hidden",hasSelection);
   listJobs($("rdUpcoming"),all.filter(j=>Date.parse(j.scheduled_at)>=now&&j.status!=="cancelled").slice(0,12),"Chưa có bài đăng sắp tới trên Fanpage này.");
-  const selectedDay=$("rdCalendarDate").value||day;
-  const daily=all.filter(j=>vnDate(j.scheduled_at)===selectedDay).sort((a,b)=>Date.parse(a.scheduled_at)-Date.parse(b.scheduled_at));
-  const summary=$("rdCalendarSummary");summary.replaceChildren();
-  for(const [label,value] of [["Ngày",selectedDay.split("-").reverse().join("/")],["Tổng bài",daily.length],["Đã đăng",daily.filter(j=>j.status==="published").length],["Chờ đăng",daily.filter(j=>j.status==="queued").length]]){
-    summary.append(el("span",label+": "+value));
+  if(hasSelection){
+    const timestamp=Date.parse(selectedDay+"T00:00:00+07:00");
+    $("rdDayTitle").textContent="Lịch đăng · "+new Date(timestamp).toLocaleDateString("vi-VN",{timeZone:zone,weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"});
+    const daily=all.filter(j=>vnDate(j.scheduled_at)===selectedDay).sort((a,b)=>Date.parse(a.scheduled_at)-Date.parse(b.scheduled_at));
+    $("rdDaySubtitle").textContent=page?"Fanpage: "+page.name+" · Giờ Việt Nam":"Chọn Fanpage để xem lịch";
+    const summary=$("rdCalendarSummary");summary.replaceChildren();
+    for(const [label,value] of [["Tổng bài",daily.length],["Đã đăng",daily.filter(j=>j.status==="published").length],["Chờ đăng",daily.filter(j=>j.status==="queued").length],["Lỗi",daily.filter(j=>j.status==="failed").length]])
+      summary.append(el("span",label+": "+value));
+    listJobs($("rdCalendarItems"),daily,"Không có bài đăng trong ngày được chọn.");
   }
-  listJobs($("rdCalendarItems"),daily,"Không có bài đăng trong ngày đã chọn.");
   const list=$("rdCampaignList");list.replaceChildren();
   const matching=campaigns.filter(x=>x.page_id===activePage);
   if(!matching.length)list.append(el("div","Fanpage này chưa có chiến dịch. Nhấn + Chiến dịch để tạo mới.","rd-empty"));
@@ -363,7 +396,7 @@ function renderDashboard(){
     main.append(el("strong",c.name),el("small",vnLong(c.start_at)+" · "+done+"/"+count+" bài đã đăng"));
     row.append(main,el("span",c.status,"rd-entry-status"),button("Xem lịch",()=>{
       const target=all.find(j=>j.campaign_id===c.id)?.scheduled_at||c.start_at;
-      $("rdCalendarDate").value=vnDate(target);setView("calendar");
+      selectDay(vnDate(target));
     }));
     list.append(row);
   }
@@ -436,13 +469,15 @@ async function cancelVideoBatch(){
 }
 function initReelsStudio(){
   if(initialized)return;initialized=true;
-  $("startDate").value=startTomorrow();$("rdCalendarDate").value=todayVN();
-  $("rdPage").onchange=()=>handle(async()=>{activePage=$("rdPage").value;$("pageSelect").value=activePage;await refreshReports();});
+  $("startDate").value=startTomorrow();
+  $("rdPage").onchange=()=>handle(async()=>{activePage=$("rdPage").value;$("pageSelect").value=activePage;selectedDay="";weekOffset=0;await refreshReports();});
   $("reelsRefresh").onclick=()=>handle(refreshAll);
   $("rdConnect").onclick=()=>openDialog("rdConnectDialog");
   $("rdNew").onclick=()=>{openDialog("rdComposer");wizard(0);if(!series.length)handle(refreshSeries);};
-  $("rdOpenCalendar").onclick=()=>setView("calendar");
-  $("rdCalendarDate").onchange=renderDashboard;
+  $("rdPrevWeek").onclick=()=>shiftWeek(-1);
+  $("rdNextWeek").onclick=()=>shiftWeek(1);
+  $("rdThisWeek").onclick=()=>selectDay(todayVN());
+  $("rdCloseDay").onclick=()=>{selectedDay="";renderDashboard();};
   for(const item of document.querySelectorAll('#reels [data-rd-view]'))item.onclick=()=>setView(item.dataset.rdView);
   for(const item of document.querySelectorAll('#reels [data-rd-close]'))item.onclick=()=>closeDialog(item.dataset.rdClose);
   $("google").onclick=()=>handle(()=>connect("google"));
