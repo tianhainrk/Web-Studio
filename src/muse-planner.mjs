@@ -16,7 +16,7 @@ export function planSpecification(data){
   const instructions=String(data.instructions||"").trim().slice(0,1200);
   return {folder,all,offset,limit,name,instructions,slots};
 }
-export async function prepareMuse(data){
+export async function prepareMuse(data,provider="Muse"){
   const spec=planSpecification(data);
   const token=await getGoogleAccessToken();
   const accessible=await driveEpisodes(token,spec.folder);
@@ -26,7 +26,7 @@ export async function prepareMuse(data){
     const file=byNumber.get(episode);
     return {episode,filename:file.name,scheduledAt:spec.slots[spec.offset+j]};
   });
-  return {spec,batch,prompt:musePrompt(spec.name,batch,spec.instructions)};
+  return {spec,batch,prompt:musePrompt(spec.name,batch,spec.instructions,provider)};
 }
 export function musePrompt(title,batch,instructions="",provider="Muse"){
   if(!Array.isArray(batch)||!batch.length)throw Error("Chưa chọn tập");
