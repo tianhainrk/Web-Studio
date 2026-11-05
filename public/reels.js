@@ -232,6 +232,8 @@ async function refreshAll(){
   $("statusPanel").replaceChildren();
   for(const [name,ok] of Object.entries(cfg)){if(typeof ok!=="boolean")continue;$("statusPanel").append(el("span",name+": "+(ok?"đã cấu hình":"chưa cấu hình"),"pill"));}
   await Promise.all([refreshPages(),refreshReports()]);
+  if(!series.length)await refreshSeries().catch(e=>show("Chưa thể tải phim từ Drive: "+e.message,true));
+  renderDrafts();
 }
 function todayVietnam(){const p=new Intl.DateTimeFormat("en-GB",{timeZone:zone,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const v=Object.fromEntries(p.map(x=>[x.type,x.value]));return v.year+"-"+v.month+"-"+v.day;}
 export function initReelsStudio(){
@@ -256,25 +258,36 @@ export function initReelsStudio(){
     for(const item of events||[]){const row=el("div",new Date(item.created_at).toLocaleString("vi-VN",{timeZone:zone})+" · "+item.action+" · "+JSON.stringify(item.details||{}),"page");root.append(row);}
     if(!events?.length)root.textContent="Chưa có nhật ký.";
   })());
-  $("musePrepare").onclick=()=>handle(prepareBatch(true));
+  $("musePrepare").onclick=()=>handle(prepareBatch());
   $("museGenerate").onclick=()=>handle(autoGenerate());
   $("museCopy").onclick=async()=>{
-    if(!$("musePrompt").value)await handle(prepareBatch(true));
+    if(!$("musePrompt").value)await handle(prepareBatch());
     if(!$("musePrompt").value)return;
-    try{await navigator.clipboard.writeText($("musePrompt").value);show("Đã sao chép lệnh; hãy gửi vào Muse, rồi dán JSON Muse trả về.");}
-    catch{ $("musePrompt").select();show("Chọn và sao chép nội dung lệnh ở ô phía trên.");}
+    try{await navigator.clipboard.writeText($("musePrompt").value);show("Đã sao chép lệnh; gửi Muse và dán JSON trả về.");}
+    catch{$("musePrompt").select();show("Hãy chọn rồi sao chép lệnh trong ô văn bản.");}
   };
   $("museParse").onclick=()=>handle(manualParse());
-  $("museReset").onclick=()=>{if(confirm("Xóa toàn bộ bản nháp Muse chưa lưu?"))resetPlan();};
+  $("museReset").onclick=()=>{if(confirm("Xóa tất cả bản nháp chưa lưu?"))resetPlan();};
   $("create").onclick=()=>handle(createCampaign());
   $("reelsRefresh").onclick=()=>handle(refreshAll());
-  $("museMode").onchange=()=>{const manual=$("museMode").value==="manual";$("musePrepare").classList.toggle("hidden",!manual);$("museCopy").classList.toggle("hidden",!manual);$("museParse").classList.toggle("hidden",!manual);};
-  $("museMode").onchange();
-  $("planProvider").onchange=()=>{$("museManualFields").classList.toggle("hidden",$("planProvider").value!=="muse");resetPlan();};
-  $("planProvider").onchange();
-  for(const id of ["startDate","startTime","perDay","spacing","aiTitle","museInstructions","series"]){
+  function updateProvider(){
+    const muse=$("planProvider").value==="muse",automatic=muse&&$("museMode").value==="gateway";
+    $("museManualFields").classList.toggle("hidden",!muse);
+    $("museGenerate").classList.toggle("hidden",muse&&!automatic);
+    $("museGenerate").textContent=muse?"Tạo kế hoạch bằng Muse":"Tạo caption và lịch cho tất cả tập bằng Gemini";
+    $("musePrepare").classList.toggle("hidden",!muse||automatic);
+    $("museCopy").classList.toggle("hidden",!muse||automatic);
+    $("musePrompt").closest("label").classList.toggle("hidden",!muse||automatic);
+    $("museReply").closest("label").classList.toggle("hidden",!muse||automatic);
+    $("museParse").classList.toggle("hidden",!muse||automatic);
+  }
+  $("planProvider").onchange=updateProvider;
+  $("museMode").onchange=updateProvider;updateProvider();
+  for(const id of ["startDate","startTime","perDay","spacing","aiTitle","museInstructions"]){
     $(id).addEventListener("change",()=>{if(draftFingerprint&&draftFingerprint!==signature())resetPlan();});
   }
+  $("campaign").addEventListener("input",renderDrafts);
+  $("pageSelect").addEventListener("change",renderDrafts);
   if(new URLSearchParams(location.search).get("connected"))show("OAuth hoàn tất. Đang làm mới kết nối.");
   renderDrafts();
 }
