@@ -144,6 +144,12 @@ export async function reelsRoute(req,res,path){
       await audit("gemini_video_batch_started",{batchId:batch.id,episodes:selected.length});
       return json(res,202,{batchId:batch.id,total:selected.length,status:"queued"});
     }
+    if(path==="/ai/video/latest"&&method==="GET"){
+      const folder=url.searchParams.get("folder")||"";
+      if(!validId(folder))return fail(res,400,"Folder ID không hợp lệ");
+      const rows=await db("reel_ai_batches?folder_id=eq."+encodeURIComponent(folder)+"&select=id,status,total,created_at&order=created_at.desc&limit=1");
+      return json(res,200,{batch:rows?.[0]||null});
+    }
     if(path==="/ai/video/status"&&method==="GET"){
       const id=url.searchParams.get("batch")||"";
       if(!/^[0-9a-f-]{36}$/i.test(id))return fail(res,400,"Batch ID không hợp lệ");
