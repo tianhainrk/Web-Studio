@@ -159,32 +159,49 @@ function mergeDraftPlan(plan,entries=currentBatch?.entries){
   const next=pendingOffset();
   $("museProgress").textContent=next<0?"Đã có đủ "+selection.size+"/"+selection.size+" tập. Kiểm tra và duyệt.":"Đã hoàn thành "+drafts.size+"/"+selection.size+" tập. Còn "+(selection.size-drafts.size)+" tập.";
 }
+let generating=false;
 async function autoGenerate(){
-  if(!selection.size||!$("series").value)throw Error("Hãy chọn các tập trên Google Drive trước");
+  if(generating)return;
   checkFreshness();
   let offset=pendingOffset();
-  if(offset<0)return show("Đã đủ "+selection.size+" caption. Có thể kiểm tra và duyệt.");
+  if(offset<0){renderDrafts();return show("Đã đủ caption tất cả tập.");}
   const provider=$("planProvider").value;
-  if(provider==="muse"&&$("museMode").value!=="gateway")throw Error("Hãy chọn Muse2API tự động hoặc dán JSON của Muse");
-  const button=$("museGenerate");button.disabled=true;
+  const fingerprint=draftFingerprint;
+  generating=true;$("museGenerate").disabled=true;
   try{
     while(offset>=0){
-      $("museProgress").textContent="Đang tạo "+drafts.size+"/"+selection.size+" tập bằng "+(provider==="gemini"?"Gemini":"Muse")+"; tiếp theo EP"+getInputs().episodes[offset];
-      const data=await api(provider==="gemini"?"/gemini/generate":"/muse/generate",getInputs(offset));
-      currentBatch={offset,entries:data.entries||data.plan};
-      mergeDraftPlan(data.plan,data.entries||currentBatch.entries);
+      const nums=getInputs().episodes;
+      $("museProgress").textContent=(provider==="gemini"?"Gemini":"Muse")+" đang tạo tập "+nums[offset]+" đến "+nums[Math.min(offset+7,nums.length-1)]+" ("+drafts.size+"/"+nums.length+")...";
+      const data=await api("/ai/generate",{...getInputs(offset),provider});
+      if(signature()!==fingerprint)throw Error("Thông tin phim hoặc lịch đã thay đổi trong lúc tạo caption");
+      currentBatch={offset,entries:data.plan};
+      mergeDraftPlan(data.plan);
       offset=pendingOffset();
     }
-    show("Đã tạo đủ "+selection.size+" tập bằng AI. Vui lòng duyệt caption và giờ đăng.");
-  }finally{button.disabled=false;renderDrafts();}
+    show("Đã tạo đủ "+getInputs().episodes.length+" tập bằng "+(provider==="gemini"?"Gemini":"Muse")+". Hãy kiểm tra trước khi duyệt.");
+  }catch(e){
+    show(e.message+"; đã giữ "+drafts.size+"/"+getInputs().episodes.length+" caption. Nhấn tạo lại để xử lý các tập còn thiếu.",true);
+  }finally{generating=false;$("museGenerate").disabled=false;renderDrafts();}
 }
 async function manualParse(){
-  const reply=$("museReply").value.trim();
-  if(!reply)throw Error("Bạn chưa dán JSON Muse trả về");
+  const raw=$("museReply").value.trim();
+  if(!raw)throw Error("Hãy dán JSON từ Muse trước khi nhập");
   checkFreshness();
-  const data=await api("/muse/parse",{...getInputs(),reply});
-  mergeDraftPlan(data.plan,data.entries);
-  show("Đã nhập "+data.plan.length+" tập từ Muse. Tổng số hoàn thành "+drafts.size+"/"+selection.size+".");
+  const fence=String.fromCharCode(96).repeat(3);
+  let cleaned=raw;
+  if(cleaned.startsWith(fence))cleaned=cleaned.replace(new RegExp("^"+fence+"(?:json)?\\s*","i"),"").replace(new RegExp("\\s*"+fence+"$"),"").trim();
+  let parsed;
+  try{parsed=JSON.parse(cleaned);}catch{throw Error("Muse trả JSON không hợp lệ. Hãy yêu cầu chỉ trả danh sách items dạng JSON.");}
+  const rows=Array.isArray(parsed)?parsed:parsed?.items;
+  if(!Array.isArray(rows)||rows.length===0)throw Error("JSON cần có items là danh sách tập.");
+  const selected=getInputs().episodes;
+  const start=selected.indexOf(Number(rows[0].episode));
+  if(start<0||start+rows.length>selected.length||rows.some((row,i)=>Number(row.episode)!==selected[start+i]))
+    throw Error("JSON có tập không nằm trong lựa chọn hoặc không đúng thứ tự. Có thể nhập toàn bộ hoặc theo từng lô liên tiếp.");
+  const data=await api("/muse/parse",{...getInputs(start,rows.length),reply:cleaned});
+  currentBatch={offset:start,entries:data.plan};
+  mergeDraftPlan(data.plan);
+  show("Đã nhập "+rows.length+" tập. Hiện có "+drafts.size+"/"+selected.length+" caption.");
 }
 async function createCampaign(){
   checkFreshness();
