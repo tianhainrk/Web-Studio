@@ -125,3 +125,85 @@
  #reels .rd-wizard-nav span{font-size:10px;padding:6px}
  #reels .rd-dialog-footer .rd-approve{margin:0;width:100%}#reels .rd-dialog-footer .rd-approve button{width:100%}
 }
+
+
+/* V2.1: one responsive Overview calendar, no separate schedule page. */
+body:has(#reels:not(.hidden)) main{max-width:1440px}
+#reels .rd-shell{max-width:1320px;margin-inline:auto;min-width:0}
+#reels .rd-week-header{align-items:end;flex-wrap:wrap}
+#reels .rd-week-actions{display:flex;align-items:center;gap:7px;justify-content:flex-end;flex-wrap:wrap}
+#reels .rd-week-actions button{min-width:37px;min-height:37px;padding:7px 11px}
+#reels .rd-week-range{white-space:nowrap;color:#b7bfd2;font-size:12px;min-width:92px;text-align:center;font-variant-numeric:tabular-nums}
+#reels .rd-week{min-width:0}
+#reels .rd-day{min-width:0;transition:border-color .15s,background .15s;cursor:pointer}
+#reels .rd-day:hover{border-color:#9173da}
+#reels .rd-day.selected{border-color:#b89afa;outline:1px solid #b89afa;background:#2a2044}
+#reels .rd-day:focus-visible,#reels .rd-week-actions button:focus-visible{outline:3px solid #d0b9ff;outline-offset:3px}
+#reels .rd-day-detail{margin-top:18px;padding:15px 17px 18px;border:1px solid #594776;background:#171b2e;border-radius:15px;scroll-margin-top:18px}
+#reels .rd-day-detail-head{margin:0 0 12px}
+#reels .rd-day-detail-head h3{font-size:16px}
+#reels .rd-day-detail .rd-entry{background:#151a29}
+#reels .rd-day-detail .rd-calendar-summary{margin:12px 0 14px}
+#reels .rd-week-hint{display:none;font-size:11px;color:#a4acc2;margin:8px 0 0}
+#reels .rd-head,#reels .rd-pagebar,#reels .rd-metrics,#reels .rd-nav,#reels .rd-view{min-width:0}
+#reels .rd-dialog input,#reels .rd-dialog textarea,#reels .rd-dialog select{max-width:100%}
+#reels .rd-dialog{overflow:hidden}
+#reels .rd-dialog .rd-dialog-body{overscroll-behavior:contain}
+@media(min-width:1400px){
+  #reels .rd-week{gap:12px}
+  #reels .rd-day{min-height:120px;padding:15px}
+  #reels .rd-entry{padding:14px 16px}
+}
+@media(max-width:1024px){
+  #reels .rd-week{grid-template-columns:repeat(7,minmax(125px,1fr));overflow-x:auto;padding:2px 2px 11px;scroll-snap-type:x proximity;scrollbar-width:thin}
+  #reels .rd-week .rd-day{scroll-snap-align:start}
+  #reels .rd-week-hint{display:block}
+  #reels .rd-head-actions{flex-wrap:wrap}
+}
+@media(max-width:720px){
+  body:has(#reels:not(.hidden)) main{padding:12px}
+  #reels .rd-shell{width:100%}
+  #reels .rd-head{gap:11px;padding:5px 0 17px}
+  #reels .rd-head h2{font-size:23px}
+  #reels .rd-head p{line-height:1.5}
+  #reels .rd-head-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  #reels .rd-head-actions button{min-width:0;padding:10px 6px;white-space:nowrap}
+  #reels .rd-pagebar{padding:12px}
+  #reels .rd-pagepick select{min-width:0;max-width:none;width:100%}
+  #reels .rd-week-header{align-items:flex-start;gap:12px}
+  #reels .rd-week-actions{justify-content:flex-start;gap:6px}
+  #reels .rd-week{display:grid;grid-auto-flow:column;grid-template-columns:none;grid-auto-columns:minmax(126px,40%);gap:8px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;padding-bottom:12px}
+  #reels .rd-day{min-height:100px;scroll-snap-align:start;padding:11px}
+  #reels .rd-day strong{font-size:21px}
+  #reels .rd-day-detail{padding:12px;margin-top:12px}
+  #reels .rd-day-detail-head{align-items:flex-start}
+  #reels .rd-calendar-summary{gap:5px}
+  #reels .rd-calendar-summary span{font-size:11px;padding:7px}
+  #reels .rd-entry{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;padding:12px;align-items:center}
+  #reels .rd-entry .rd-entry-date{grid-column:1;grid-row:1;min-width:0}
+  #reels .rd-entry .rd-entry-status{grid-column:2;grid-row:1}
+  #reels .rd-entry .rd-entry-main{grid-column:1/-1;grid-row:2;min-width:0}
+  #reels .rd-entry>button{grid-column:1/-1;grid-row:3;width:100%}
+  #reels .rd-entry:not(:has(.rd-entry-date)) .rd-entry-main{grid-row:1;grid-column:1/-1}
+  #reels .rd-entry:not(:has(.rd-entry-date)) .rd-entry-status{grid-row:2;grid-column:1}
+  #reels .rd-entry:not(:has(.rd-entry-date))>button{grid-row:2;grid-column:2;width:auto}
+  #reels .rd-dialog{width:calc(100vw - 16px);max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px);border-radius:15px}
+  #reels .rd-dialog-large{width:calc(100vw - 12px);max-width:calc(100vw - 12px)}
+  #reels .rd-dialog-body{max-height:calc(100dvh - 154px);padding:14px}
+  #reels .rd-dialog-head{padding:15px}
+  #reels .rd-dialog input,#reels .rd-dialog select,#reels .rd-dialog textarea{font-size:16px}
+  #reels .rd-dialog-footer{position:sticky;bottom:0;background:#111624;padding:12px 0 max(11px,env(safe-area-inset-bottom));z-index:2}
+  #reels .rd-dialog button{min-height:40px}
+}
+@media(max-width:380px){
+  #reels .rd-head-actions button{font-size:11px}
+  #reels .rd-week{grid-auto-columns:minmax(118px,54%)}
+  #reels .rd-week-range{min-width:80px;font-size:11px}
+  #reels .rd-metric span{font-size:11px}
+  #reels .rd-day-detail-head{flex-direction:column}
+  #reels #rdCloseDay{width:100%}
+}
+@media(prefers-reduced-motion:reduce){
+  #reels .rd-day{transition:none}
+  #reels .rd-week{scroll-behavior:auto}
+}
