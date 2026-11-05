@@ -130,7 +130,7 @@ export async function reelsRoute(req,res,path){
         return {episode,file_id:f.id,filename:f.name,scheduled_at:spec.slots[index]};
       });
       const batch=(await db("reel_ai_batches",{method:"POST",prefer:"return=representation",body:{
-        folder_id:spec.folder,title:spec.name,instructions:spec.instructions,total:selected.length,status:"queued"
+        folder_id:spec.folder,title:spec.name,instructions:spec.instructions,total:selected.length,status:"queued",settings:{name:String(b.name||"").slice(0,100),pageId:String(b.pageId||""),startDate:b.startDate,time:b.time,perDay:Number(b.perDay),spacingMinutes:Number(b.spacingMinutes)}
       }}))?.[0];
       if(!batch?.id)throw Error("Không thể tạo chiến dịch Gemini trong Supabase");
       try{
@@ -153,7 +153,7 @@ export async function reelsRoute(req,res,path){
     if(path==="/ai/video/status"&&method==="GET"){
       const id=url.searchParams.get("batch")||"";
       if(!/^[0-9a-f-]{36}$/i.test(id))return fail(res,400,"Batch ID không hợp lệ");
-      const batch=(await db("reel_ai_batches?id=eq."+id+"&select=id,folder_id,title,total,status,error,created_at&limit=1"))?.[0];
+      const batch=(await db("reel_ai_batches?id=eq."+id+"&select=id,folder_id,title,instructions,settings,total,status,error,created_at&limit=1"))?.[0];
       if(!batch)return fail(res,404,"Không thấy batch Gemini");
       const items=await db("reel_ai_items?batch_id=eq."+id+"&select=episode,filename,scheduled_at,caption,summary,status,error,attempts&order=episode.asc&limit=300");
       return json(res,200,{batch,items});
