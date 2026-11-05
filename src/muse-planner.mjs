@@ -10,13 +10,13 @@ export function planSpecification(data){
   const all=validateSelection(data?.episodes);
   const slots=scheduleEpisodes({startDate:data.startDate,time:data.time,perDay:data.perDay,spacingMinutes:data.spacingMinutes,count:all.length});
   const offset=Number(data.offset??0),limit=Number(data.limit??10);
-  if(!Number.isInteger(offset)||offset<0||offset>=all.length||!Number.isInteger(limit)||limit<1||limit>50)throw Error("Batch Muse không hợp lệ");
+  if(!Number.isInteger(offset)||offset<0||offset>=all.length||!Number.isInteger(limit)||limit<1||limit>300)throw Error("Batch Muse không hợp lệ");
   const name=String(data.title||"").trim().slice(0,120);
   if(!name)throw Error("Cần tên phim để Muse soạn caption");
   const instructions=String(data.instructions||"").trim().slice(0,1200);
   return {folder,all,offset,limit,name,instructions,slots};
 }
-export async function prepareMuse(data){
+export async function prepareMuse(data,provider="Muse"){
   const spec=planSpecification(data);
   const token=await getGoogleAccessToken();
   const accessible=await driveEpisodes(token,spec.folder);
@@ -26,12 +26,12 @@ export async function prepareMuse(data){
     const file=byNumber.get(episode);
     return {episode,filename:file.name,scheduledAt:spec.slots[spec.offset+j]};
   });
-  return {spec,batch,prompt:musePrompt(spec.name,batch,spec.instructions)};
+  return {spec,batch,prompt:musePrompt(spec.name,batch,spec.instructions,provider)};
 }
-export function musePrompt(title,batch,instructions=""){
+export function musePrompt(title,batch,instructions="",provider="Muse"){
   if(!Array.isArray(batch)||!batch.length)throw Error("Chưa chọn tập");
   return [
-    "Bạn là Muse, biên tập viên lập lịch Facebook Reels cho Anpi Drama.",
+    "Bạn là "+provider+", trợ lý biên tập Facebook Reels cho Anpi Drama.",
     "Chỉ tạo BẢN NHÁP. KHÔNG đăng Facebook, KHÔNG truy cập Drive, KHÔNG hỏi mật khẩu hoặc token.",
     "Chỉ trả JSON UTF-8 không giải thích, không markdown; cấu trúc:",
     JSON.stringify({items:[{episode:batch[0].episode,scheduledAt:batch[0].scheduledAt,caption:"Viết caption ngắn, riêng cho tập này"}]}),
@@ -43,14 +43,20 @@ export function musePrompt(title,batch,instructions=""){
     "Chỉ xuất JSON items."
   ].join("\n");
 }
+export function parsePlanItems(raw) {
+  let text=typeof raw==="string"?raw:Array.isArray(raw)?raw.map(x=>typeof x==="string"?x:(x?.text||"")).join(""):"";
+  text=text.trim();
+  const fence=String.fromCharCode(96).repeat(3);
+  if(text.startsWith(fence))text=text.replace(new RegExp("^"+fence+"(?:json)?\\s*","i"),"").replace(new RegExp("\\s*"+fence+"$"),"").trim();
+  if(!text||text.length>250000)throw Error("Kết quả AI trống hoặc quá lớn");
+  let json;try{json=JSON.parse(text);}catch{throw Error("JSON không hợp lệ, hãy dán đủ phần phản hồi của AI");}
+  const items=Array.isArray(json)?json:json?.items;
+  if(!Array.isArray(items)||items.length<1||items.length>300)throw Error("JSON phải có items gồm từ 1 tới 300 tập");
+  return items;
+}
 export function validateMuseReply(raw,batch){
-  let s=typeof raw==="string"?raw:Array.isArray(raw)?raw.map(x=>typeof x==="string"?x:(x?.text||"")).join(""):"";
-  s=s.trim();const fence=String.fromCharCode(96).repeat(3);
-  if(s.startsWith(fence))s=s.replace(new RegExp("^"+fence+"(?:json)?\\s*","i"),"").replace(new RegExp("\\s*"+fence+"$"),"").trim();
-  if(!s||s.length>250000)throw Error("Muse trả dữ liệu rỗng hoặc quá lớn");
-  let parsed;try{parsed=JSON.parse(s);}catch{throw Error("Muse không trả JSON hợp lệ; hãy yêu cầu chỉ trả JSON");}
-  const rows=Array.isArray(parsed)?parsed:parsed?.items;
-  if(!Array.isArray(rows)||rows.length!==batch.length)throw Error("Muse trả thiếu hoặc thừa tập");
+  const rows=parsePlanItems(raw);
+  if(rows.length!==batch.length)throw Error("AI trả "+rows.length+"/"+batch.length+" tập trong lô đang kiểm tra");
   let prev=-Infinity;
   return batch.map((ref,i)=>{
     const row=rows[i];
@@ -104,4 +110,43 @@ export async function requestMusePlan(prompt,batch){
   if(!response.ok)throw Error("Muse2API HTTP "+response.status+"; kiểm tra gateway, tài khoản và API key");
   const data=await response.json();
   return validateMuseReply(data?.choices?.[0]?.message?.content,batch);
+}
+
+export function geminiPlanRequest(prompt) {
+  if(typeof prompt!=="string"||!prompt.trim())throw Error("Thiếu hướng dẫn cho Gemini");
+  return {
+    contents:[{role:"user",parts:[{text:prompt}]}],
+    generationConfig:{
+      temperature:0.45,
+      maxOutputTokens:3500,
+      responseMimeType:"application/json",
+      responseSchema:{
+        type:"OBJECT",
+        properties:{
+          items:{type:"ARRAY",items:{
+            type:"OBJECT",properties:{
+              episode:{type:"INTEGER"},
+              scheduledAt:{type:"STRING"},
+              caption:{type:"STRING"}
+            },required:["episode","scheduledAt","caption"]
+          }}
+        },required:["items"]
+      }
+    }
+  };
+}
+export async function requestGeminiPlan(prompt,batch) {
+  requiredConfig(["GEMINI_API_KEY"]);
+  const model=process.env.GEMINI_MODEL||"gemini-2.5-flash";
+  if(!/^[a-zA-Z0-9._-]+$/.test(model))throw Error("GEMINI_MODEL không hợp lệ");
+  const response=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent",{
+    method:"POST",
+    headers:{"x-goog-api-key":process.env.GEMINI_API_KEY,"Content-Type":"application/json"},
+    body:JSON.stringify(geminiPlanRequest(prompt)),
+    redirect:"error",signal:AbortSignal.timeout(42000)
+  });
+  if(!response.ok)throw Error("Gemini HTTP "+response.status+". Kiểm tra model, quota hoặc API key; các tập đã tạo vẫn được giữ.");
+  const data=await response.json();
+  const result=data.candidates?.[0]?.content?.parts?.map(x=>x.text||"").join("")||"";
+  return validateMuseReply(result,batch);
 }

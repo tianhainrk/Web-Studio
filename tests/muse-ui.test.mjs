@@ -29,7 +29,25 @@ test("legacy Reels URL redirects to integrated tab",()=>{
   assert.doesNotMatch(legacy,/src="\/reels\.js"/);
 });
 test("Muse review required before saving campaign",()=>{
-  assert.match(reels,/if\(plan\.some\(x=>!x\)\)/);
+  assert.match(reels,/planReview\(\)/);
   assert.match(reels,/if\(!confirm\(/);
   assert.match(reels,/api\("\/campaigns\/create"/);
+});
+
+test("Gemini is the primary planner, Muse remains secondary, and episodes auto-load",()=>{
+  assert.match(html,/id="planProvider"/);
+  assert.match(html,/<option value="gemini" selected>/);
+  assert.match(html,/<option value="muse">Muse AI/);
+  assert.match(html,/id="reviewSummary"/);
+  assert.match(html,/id="reviewHint"/);
+  assert.match(html,/id="museManualFields"/);
+  assert.match(reels,/\$\("series"\)\.onchange=\(\)=>handle\(refreshEpisodes\(\)\)/);
+  assert.match(reels,/api\("\/ai\/generate"/);
+  assert.match(reels,/mergeDraftPlan\(data\.plan\)/);
+});
+
+test("all-episode review supports 10/10 and manual JSON",()=>{
+  assert.match(reels,/getInputs\(start,rows\.length\)/);
+  assert.match(reels,/while\(offset>=0\)/);
+  assert.match(reels,/function planReview\(/);
 });
