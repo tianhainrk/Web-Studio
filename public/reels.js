@@ -40,7 +40,7 @@ async function refreshPages(){const data=await api("/pages");pages=data.pages||[
 async function refreshSeries(){
   const data=await api("/drive/series");series=data.series||[];
   const sel=$("series");sel.replaceChildren(el("option","Chọn phim"));
-  for(const item of series){const o=el("option",item.name);o.value=item.id;sel.append(o);}
+  for(const item of series){const title=item.title||item.name;const o=el("option",title===item.name?title:title+" ("+item.name+")");o.value=item.id;sel.append(o);}
   show("Đã tải "+series.length+" thư mục phim từ Drive.");
 }
 function episodeUI(){
@@ -57,7 +57,7 @@ async function refreshEpisodes(){
   const original=data.episodes||[];episodes=[...new Map(original.map(ep=>[ep.episode,ep])).values()].sort((a,b)=>a.episode-b.episode);selection.clear();resetPlan();episodeUI();
   if(original.length>episodes.length)show("Drive có "+(original.length-episodes.length)+" file trùng số tập; giao diện chỉ hiển thị 1 lựa chọn mỗi tập.",true);
   const current=series.find(x=>x.id===folder);
-  if(current)$("aiTitle").value=current.name;
+  if(current)$("aiTitle").value=current.title||current.name;
   show("Tìm thấy "+episodes.length+" tập trong thư mục.");
 }
 
