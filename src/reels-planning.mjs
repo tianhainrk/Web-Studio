@@ -43,7 +43,8 @@ export function normalizeBalancedReply(rows,refs,{startDate,now=Date.now()}={}){
   if(numbers.some((n,i)=>!Number.isInteger(n)||(i&&n<=numbers[i-1])))throw Error("Manifest tập không hợp lệ");
   const baseline=balancedSchedule({startDate,count:refs.length});
   let changes=0;
-  const output=rows.map((row,i)=>{
+  const output=[];
+  rows.forEach((row,i)=>{
     if(Number(row.episode)!==numbers[i])throw Error("JSON trả sai số tập hoặc thứ tự tại vị trí "+(i+1));
     const caption=String(row.caption||"").trim();
     if(!caption||caption.length>2200)throw Error("Thiếu caption hợp lệ cho EP"+numbers[i]);
@@ -59,9 +60,9 @@ export function normalizeBalancedReply(rows,refs,{startDate,now=Date.now()}={}){
     if(time<=now+60000)throw Error("Ngày đăng đã qua hoặc quá gần hiện tại: hãy chọn ngày bắt đầu khác");
     const scheduledAt=new Date(time).toISOString();
     if(scheduledAt!==proposed)changes++;
-    return {episode:numbers[i],scheduledAt,caption};
+    output.push({episode:numbers[i],scheduledAt,caption});
   });
-  validateBalancedSchedule(output,startDate,Date.now()===-1?now:now);
+  validateBalancedSchedule(output,startDate,now);
   return {plan:output,adjusted:changes};
 }
 export function validateBalancedSchedule(plan,startDate,now=Date.now()){
