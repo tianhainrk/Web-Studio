@@ -1,14 +1,9 @@
 name: Analyze Drive Videos with Gemini
+# Gemini video processing is paused. No automatic calls or charges.
+# Re-enable only by setting ENABLE_GEMINI_VIDEO_WORKER=true in Actions Variables
+# AND explicitly invoking this workflow manually.
 on:
-  schedule:
-    # Avoid the busiest exact 00/05 minute slots; best-effort, not a guarantee.
-    - cron: "2-59/5 * * * *"
   workflow_dispatch:
-  # One-time initial smoke run when this workflow file is deployed to main.
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/gemini-video-worker.yml"
 permissions:
   contents: read
 concurrency:
@@ -16,6 +11,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   analyze:
+    if: vars.ENABLE_GEMINI_VIDEO_WORKER == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
