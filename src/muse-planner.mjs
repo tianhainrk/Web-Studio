@@ -28,10 +28,10 @@ export async function prepareMuse(data){
   });
   return {spec,batch,prompt:musePrompt(spec.name,batch,spec.instructions)};
 }
-export function musePrompt(title,batch,instructions=""){
+export function musePrompt(title,batch,instructions="",provider="Muse"){
   if(!Array.isArray(batch)||!batch.length)throw Error("Chưa chọn tập");
   return [
-    "Bạn là Muse, biên tập viên lập lịch Facebook Reels cho Anpi Drama.",
+    "Bạn là "+provider+", trợ lý biên tập Facebook Reels cho Anpi Drama.",
     "Chỉ tạo BẢN NHÁP. KHÔNG đăng Facebook, KHÔNG truy cập Drive, KHÔNG hỏi mật khẩu hoặc token.",
     "Chỉ trả JSON UTF-8 không giải thích, không markdown; cấu trúc:",
     JSON.stringify({items:[{episode:batch[0].episode,scheduledAt:batch[0].scheduledAt,caption:"Viết caption ngắn, riêng cho tập này"}]}),
@@ -104,4 +104,43 @@ export async function requestMusePlan(prompt,batch){
   if(!response.ok)throw Error("Muse2API HTTP "+response.status+"; kiểm tra gateway, tài khoản và API key");
   const data=await response.json();
   return validateMuseReply(data?.choices?.[0]?.message?.content,batch);
+}
+
+export function geminiPlanRequest(prompt) {
+  if(typeof prompt!=="string"||!prompt.trim())throw Error("Thiếu hướng dẫn cho Gemini");
+  return {
+    contents:[{role:"user",parts:[{text:prompt}]}],
+    generationConfig:{
+      temperature:0.45,
+      maxOutputTokens:3500,
+      responseMimeType:"application/json",
+      responseSchema:{
+        type:"OBJECT",
+        properties:{
+          items:{type:"ARRAY",items:{
+            type:"OBJECT",properties:{
+              episode:{type:"INTEGER"},
+              scheduledAt:{type:"STRING"},
+              caption:{type:"STRING"}
+            },required:["episode","scheduledAt","caption"]
+          }}
+        },required:["items"]
+      }
+    }
+  };
+}
+export async function requestGeminiPlan(prompt,batch) {
+  requiredConfig(["GEMINI_API_KEY"]);
+  const model=process.env.GEMINI_MODEL||"gemini-2.5-flash";
+  if(!/^[a-zA-Z0-9._-]+$/.test(model))throw Error("GEMINI_MODEL không hợp lệ");
+  const response=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent",{
+    method:"POST",
+    headers:{"x-goog-api-key":process.env.GEMINI_API_KEY,"Content-Type":"application/json"},
+    body:JSON.stringify(geminiPlanRequest(prompt)),
+    redirect:"error",signal:AbortSignal.timeout(42000)
+  });
+  if(!response.ok)throw Error("Gemini HTTP "+response.status+". Kiểm tra model, quota hoặc API key; các tập đã tạo vẫn được giữ.");
+  const data=await response.json();
+  const result=data.candidates?.[0]?.content?.parts?.map(x=>x.text||"").join("")||"";
+  return validateMuseReply(result,batch);
 }
