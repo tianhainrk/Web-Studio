@@ -1,3 +1,4 @@
+import {prepareMuse,validateMuseReply,validateApprovedPlan,requestMusePlan} from "./muse-planner.mjs";
 import {oauthState,verifyOauthState,encryptToken,db,audit,clientConfig,fetchJSON,getGoogleAccessToken,driveSeries,driveEpisodes,scheduleEpisodes,validId,requiredConfig} from "./reels-core.mjs";
 const graph="https://graph.facebook.com/v26.0";
 const permittedScopes="pages_show_list,pages_read_engagement,pages_manage_posts";
@@ -106,6 +107,21 @@ export async function reelsRoute(req,res,path){
       const events=await db("reel_audit?select=id,action,job_id,details,created_at&order=created_at.desc&limit=100");
       return json(res,200,{events});
     }
+    if(path==="/muse/prepare"&&method==="POST"){
+      const request=await body(req);const prepared=await prepareMuse(request);
+      return json(res,200,{prompt:prepared.prompt,entries:prepared.batch,total:prepared.spec.all.length});
+    }
+    if(path==="/muse/generate"&&method==="POST"){
+      const request=await body(req);const prepared=await prepareMuse(request);
+      const plan=await requestMusePlan(prepared.prompt,prepared.batch);
+      await audit("muse_plan_drafted",{episodes:plan.map(x=>x.episode),provider:"muse2api"});
+      return json(res,200,{plan,provider:"muse2api",status:"draft"});
+    }
+    if(path==="/muse/parse"&&method==="POST"){
+      const request=await body(req);const prepared=await prepareMuse(request);
+      const plan=validateMuseReply(String(request.reply||""),prepared.batch);
+      return json(res,200,{plan,provider:"muse_manual",status:"draft"});
+    }
     if(path==="/campaigns"&&method==="GET"){
       const campaigns=await db("reel_campaigns?select=id,name,page_id,folder_id,start_at,per_day,spacing_minutes,status,created_at&order=created_at.desc&limit=100");
       return json(res,200,{campaigns});
@@ -125,13 +141,14 @@ export async function reelsRoute(req,res,path){
       const token=await getGoogleAccessToken();const available=await driveEpisodes(token,folderId);
       const chosen=selection.map(n=>available.find(e=>e.episode===n));
       if(chosen.some(x=>!x))return fail(res,400,"Có tập không tồn tại trong Drive");
-      const times=scheduleEpisodes({startDate:b.startDate,time:b.time,perDay:b.perDay,spacingMinutes:b.spacingMinutes,count:chosen.length});
+      const approved=Array.isArray(b.plan)?validateApprovedPlan(b.plan,selection):null;
+      const times=approved?approved.map(x=>x.scheduledAt):scheduleEpisodes({startDate:b.startDate,time:b.time,perDay:b.perDay,spacingMinutes:b.spacingMinutes,count:chosen.length});
       if(Date.parse(times[0])<Date.now()+60000)return fail(res,400,"Ngày đăng đầu tiên cần cách hiện tại ít nhất 1 phút");
       const caption=String(b.caption||"").trim();
-      if(caption.length>2200)return fail(res,400,"Caption không được vượt 2200 ký tự");
+      if(!approved&&caption.length>2200)return fail(res,400,"Caption không được vượt 2200 ký tự");
       const campaigns=await db("reel_campaigns",{method:"POST",prefer:"return=representation",body:{name:b.name.trim(),page_id:pageId,folder_id:folderId,start_at:times[0],per_day:Number(b.perDay),spacing_minutes:Number(b.spacingMinutes),status:"active"}});
       const campaign=campaigns?.[0];if(!campaign?.id)throw Error("Không thể lưu chiến dịch");
-      const jobs=chosen.map((e,i)=>({campaign_id:campaign.id,page_id:pageId,folder_id:folderId,file_id:e.id,filename:e.name,episode:e.episode,scheduled_at:times[i],caption:caption.replace(/\{episode\}/g,String(e.episode)),status:"queued"}));
+      const jobs=chosen.map((e,i)=>({campaign_id:campaign.id,page_id:pageId,folder_id:folderId,file_id:e.id,filename:e.name,episode:e.episode,scheduled_at:times[i],caption:approved?approved[i].caption:caption.replace(/\{episode\}/g,String(e.episode)),status:"queued"}));
       try{await db("reel_jobs",{method:"POST",prefer:"return=minimal",body:jobs});}
       catch(e){await db("reel_campaigns?id=eq."+campaign.id,{method:"DELETE"});throw e;}
       await audit("campaign_created",{campaignId:campaign.id,episodes:jobs.length,pageId},null);
