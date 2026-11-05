@@ -72,14 +72,14 @@ let initialized=false;
 let draftFingerprint="";
 const drafts=new Map();
 let currentBatch=null;
-function getInputs(offset=0){
+function getInputs(offset=0,limit=8){
   return {
     name:$("campaign").value.trim(),pageId:$("pageSelect").value,folderId:$("series").value,
     title:$("aiTitle").value.trim(),
     episodes:[...selection.keys()].sort((a,b)=>a-b),
     startDate:$("startDate").value,time:$("startTime").value,
     perDay:Number($("perDay").value),spacingMinutes:Number($("spacing").value),
-    instructions:$("museInstructions").value,offset,limit:8
+    instructions:$("museInstructions").value,offset,limit
   };
 }
 function signature(){
