@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {encryptToken,decryptToken,oauthState,verifyOauthState,scheduleEpisodes,episodeNo,validId,clientConfig} from "../src/reels-core.mjs";
+import {encryptToken,decryptToken,oauthState,verifyOauthState,scheduleEpisodes,episodeNo,validId,clientConfig,isOAuthCallbackRequest} from "../src/reels-core.mjs";
 import {randomBytes} from "node:crypto";
 const key=randomBytes(32);
 test("AES-256-GCM encrypts and decrypts without exposing plaintext",()=>{
@@ -45,4 +45,17 @@ test("Configuration exposes only booleans, not secrets",()=>{
   assert.equal(typeof cfg.supabase,"boolean");
   assert.equal(typeof cfg.meta,"boolean");
   assert.ok(!JSON.stringify(cfg).includes("access_token"));
+});
+
+test("OAuth callback cross-site exception is restricted to provider GET callbacks",()=>{
+  assert.equal(isOAuthCallbackRequest("GET","/reels/oauth/google/callback"),true);
+  assert.equal(isOAuthCallbackRequest("GET","/reels/oauth/meta/callback"),true);
+  for(const [method,path] of [
+    ["POST","/reels/oauth/google/callback"],
+    ["GET","/reels/oauth/google/start"],
+    ["GET","/reels/oauth/other/callback"],
+    ["GET","/reels/pages"],
+    ["GET","/reels/oauth/google/callback/anything"],
+    ["GET","/reels/oauth/google/callback/../pages"]
+  ])assert.equal(isOAuthCallbackRequest(method,path),false,method+" "+path);
 });
