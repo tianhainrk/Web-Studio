@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {planSpecification,musePrompt,validateMuseReply,validateApprovedPlan,validateSelection,gatewayEndpoint,parsePlanItems,geminiPlanRequest} from "../src/muse-planner.mjs";
+import {planSpecification,musePrompt,validateMuseReply,validateApprovedPlan,validateSelection,gatewayEndpoint,geminiPlanRequest,parsePlanItems,geminiPlanRequest} from "../src/muse-planner.mjs";
 
 const episodes=[1,2,3,4,5,6,7,8,9];
 const prepared={
@@ -72,4 +72,22 @@ test("Gemini request demands structured JSON for per-episode data",()=>{
   assert.equal(request.generationConfig.responseMimeType,"application/json");
   assert.deepEqual(request.generationConfig.responseSchema.properties.items.items.required,["episode","scheduledAt","caption"]);
   assert.match(request.contents[0].parts[0].text,/caption/);
+});
+
+test("Gemini structured request requires per-episode JSON with all fields",()=>{
+  const request=geminiPlanRequest("Viết caption cho 10 tập");
+  assert.equal(request.generationConfig.responseMimeType,"application/json");
+  assert.deepEqual(request.generationConfig.responseSchema.properties.items.items.required,["episode","scheduledAt","caption"]);
+  assert.equal(request.contents[0].parts[0].text,"Viết caption cho 10 tập");
+});
+test("full 10-episode JSON validates without 8-episode truncation",()=>{
+  const all=Array.from({length:10},(_,i)=>{
+    const day=Math.floor(i/2),minute=i%2;
+    const date=new Date(Date.parse("2026-12-20T12:00:00.000Z")+day*86400000+minute*3600000);
+    return {episode:i+1,scheduledAt:date.toISOString(),filename:"EP"+String(i+1).padStart(3,"0")+".mp4"};
+  });
+  const response={items:all.map(x=>({episode:x.episode,scheduledAt:x.scheduledAt,caption:"Tập "+x.episode+" – hãy cùng đón xem những diễn biến tiếp theo!"}))};
+  assert.equal(validateMuseReply(JSON.stringify(response),all).length,10);
+  const spec=planSpecification({...prepared,episodes:Array.from({length:10},(_,i)=>i+1),offset:0,limit:10});
+  assert.equal(spec.all.length,10);
 });
