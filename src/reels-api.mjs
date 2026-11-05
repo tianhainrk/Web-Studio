@@ -1,4 +1,4 @@
-import {prepareMuse,parsePlanItems,validateMuseReply,validateApprovedPlan,requestMusePlan,requestGeminiPlan} from "./muse-planner.mjs";
+import {prepareMuse,parsePlanItems,validateMuseReply,validateApprovedPlan,requestMusePlan,requestGeminiPlan,musePrompt,planSpecification} from "./muse-planner.mjs";
 import {oauthState,verifyOauthState,encryptToken,db,audit,clientConfig,fetchJSON,getGoogleAccessToken,driveSeries,driveEpisodes,scheduleEpisodes,validId,requiredConfig} from "./reels-core.mjs";
 const graph="https://graph.facebook.com/v26.0";
 const permittedScopes="pages_show_list,pages_read_engagement,pages_manage_posts";
