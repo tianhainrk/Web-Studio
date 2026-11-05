@@ -45,3 +45,14 @@ test("Gemini is the primary planner, Muse remains secondary, and episodes auto-l
   assert.match(reels,/provider==="gemini"\?"\/gemini\/generate":"\/muse\/generate"/);
   assert.match(reels,/mergeDraftPlan\(data\.plan,data\.entries\)/);
 });
+
+test("Gemini is first and UI reports all selected episodes",()=>{
+  assert.match(html,/<option value="gemini" selected>Gemini AI/);
+  assert.match(html,/id="reviewSummary"/);
+  assert.match(html,/id="reviewHint"/);
+  assert.match(reels,/$("series").onchange/);
+  assert.match(reels,//ai/generate/);
+  assert.match(reels,/while(offset>=0)/);
+  assert.match(reels,/getInputs(start,rows.length)/);
+  assert.match(reels,/planReview()/);
+});
