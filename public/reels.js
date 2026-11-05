@@ -72,14 +72,14 @@ let initialized=false;
 let draftFingerprint="";
 const drafts=new Map();
 let currentBatch=null;
-function getInputs(offset=0){
+function getInputs(offset=0,limit=8){
   return {
     name:$("campaign").value.trim(),pageId:$("pageSelect").value,folderId:$("series").value,
     title:$("aiTitle").value.trim(),
     episodes:[...selection.keys()].sort((a,b)=>a-b),
     startDate:$("startDate").value,time:$("startTime").value,
     perDay:Number($("perDay").value),spacingMinutes:Number($("spacing").value),
-    instructions:$("museInstructions").value,offset,limit:8
+    instructions:$("museInstructions").value,offset,limit
   };
 }
 function signature(){
@@ -138,7 +138,7 @@ function renderDrafts(){
     const header=el("div","","anpi-plan-header");
     header.append(el("strong","TẬP "+String(number).padStart(3,"0"),"episode-head"));
     header.append(el("span",item?"Đã có caption":"Chờ tạo","status"));
-    wrap.append(header);
+    wrap.append(header,el("div",selection.get(number)?.name||("EP"+String(number).padStart(3,"0")+".mp4"),"muted"));
     if(!item){
       wrap.append(el("p","Chưa có caption. Nhấn Tạo caption và lịch để xử lý các tập còn thiếu.","muted"));
       root.append(wrap);continue;
