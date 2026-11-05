@@ -160,7 +160,7 @@ function renderDrafts(){
       };timeCell.append(input);
     }else timeCell.append(el("span","—","muted"));
     row.append(timeCell);
-    row.append(el("td",item?.summary||"Chưa phân tích video","source-col"));
+    row.append(el("td",item?.summary?item.summary+(item.evidence?" · "+item.evidence:""):"Chưa có mô tả nội dung video","source-col"));
     const cap=el("td","","caption-col");
     if(item){
       const area=el("textarea");area.maxLength=2200;area.rows=2;area.value=item.caption;
@@ -170,7 +170,7 @@ function renderDrafts(){
         const latest=planReview();save.disabled=generating||!latest.ready;
         if(hint)hint.textContent=latest.ready?"Đã đủ, có thể duyệt và lưu chiến dịch":"Kiểm tra caption, thời gian và số tập";
       };cap.append(area);
-    }else cap.append(el("span","Chờ Gemini tạo caption…","muted"));
+    }else cap.append(el("span","Chưa có caption — nhập JSON Muse","muted"));
     row.append(cap);
     const status=videoStatuses.get(n)||{};
     const label=status.status==="failed"?"Lỗi":status.status==="running"?"Đang đọc MP4":
@@ -186,13 +186,15 @@ function renderDrafts(){
 async function prepareBatch(all=false){
   if(!selection.size||!$("series").value)return show("Bạn cần chọn phim và tập từ Drive trước.",true);
   checkFreshness();
-  const offset=pendingOffset();
+  const offset=all?0:pendingOffset();
   if(offset<0){renderDrafts();return show("Tất cả tập đã có bản nháp. Có thể xem trước và lưu chiến dịch.");}
-  const manualOptions=getInputs(offset);manualOptions.limit=all?selection.size:Math.min(30,manualOptions.episodes.length-offset);
+  const manualOptions=getInputs(offset);
+  manualOptions.limit=all?selection.size:Math.min(30,manualOptions.episodes.length-offset);
+  manualOptions.museReadDrive=$("planProvider").value==="muse"&&$("museMode").value==="manual"&&$("captionSource").value==="connected_drive";
   const data=await api("/muse/prepare",manualOptions);
   currentBatch={offset,entries:data.entries};
   $("musePrompt").value=data.prompt;
-  $("museProgress").textContent="Đã tạo lệnh cho "+data.entries.length+" tập, bắt đầu từ EP"+data.entries[0].episode+".";
+  $("museProgress").textContent="Đã tạo MỘT lệnh cho "+data.entries.length+" tập trong đúng thư mục Drive. Sao chép sang Muse đã kết nối, tải file kết quả JSON về rồi nhập vào bảng.";
   return data;
 }
 function mergeDraftPlan(plan,entries=currentBatch?.entries){
@@ -320,23 +322,29 @@ async function autoGenerate(){
 }
 async function manualParse(){
   const raw=$("museReply").value.trim();
-  if(!raw)throw Error("Hãy dán JSON từ Muse trước khi nhập");
+  if(!raw)throw Error("Hãy dán JSON hoặc chọn file JSON do Muse xuất");
   checkFreshness();
   const fence=String.fromCharCode(96).repeat(3);
   let cleaned=raw;
   if(cleaned.startsWith(fence))cleaned=cleaned.replace(new RegExp("^"+fence+"(?:json)?\\s*","i"),"").replace(new RegExp("\\s*"+fence+"$"),"").trim();
   let parsed;
-  try{parsed=JSON.parse(cleaned);}catch{throw Error("Muse trả JSON không hợp lệ. Hãy yêu cầu chỉ trả danh sách items dạng JSON.");}
+  try{parsed=JSON.parse(cleaned);}catch{throw Error("JSON Muse không hợp lệ. Cần cấu trúc {items:[{episode,scheduledAt,caption,summary,evidence}]}");}
   const rows=Array.isArray(parsed)?parsed:parsed?.items;
-  if(!Array.isArray(rows)||rows.length===0)throw Error("JSON cần có items là danh sách tập.");
-  const selected=getInputs().episodes;
-  const start=selected.indexOf(Number(rows[0].episode));
-  if(start<0||start+rows.length>selected.length||rows.some((row,i)=>Number(row.episode)!==selected[start+i]))
-    throw Error("JSON có tập không nằm trong lựa chọn hoặc không đúng thứ tự. Có thể nhập toàn bộ hoặc theo từng lô liên tiếp.");
-  const data=await api("/muse/parse",{...getInputs(start,rows.length),reply:cleaned});
-  currentBatch={offset:start,entries:data.plan};
-  mergeDraftPlan(data.plan);
-  show("Đã nhập "+rows.length+" tập. Hiện có "+drafts.size+"/"+selected.length+" caption.");
+  if(!Array.isArray(rows)||rows.length===0)throw Error("JSON phải có ít nhất một mục trong items");
+  const numbers=new Set(getInputs().episodes);
+  const seen=new Set();let previous=-Infinity;
+  for(const row of rows){
+    const number=Number(row?.episode);
+    if(!numbers.has(number)||seen.has(number)||number<=previous)
+      throw Error("JSON có tập ngoài lựa chọn, bị trùng hoặc không đúng thứ tự tăng dần");
+    seen.add(number);previous=number;
+  }
+  const driveMode=$("planProvider").value==="muse"&&$("museMode").value==="manual"&&$("captionSource").value==="connected_drive";
+  const data=await api("/muse/parse",{...getInputs(0,getInputs().episodes.length),museReadDrive:driveMode,reply:cleaned});
+  currentBatch={offset:0,entries:data.entries};
+  mergeDraftPlan(data.plan,data.entries);
+  if(parsed.cleanup?.status)show("Đã nhập "+rows.length+" tập. Trạng thái dọn workspace Muse: "+parsed.cleanup.status+". Đây là thông tin Muse báo, chưa được Anpi Drama xác minh.");
+  else show("Đã nhập "+rows.length+" tập. Hiện có "+drafts.size+"/"+numbers.size+" caption.");
 }
 async function createCampaign(){
   checkFreshness();
