@@ -14,7 +14,7 @@ In section **3. Muse lập chiến dịch và caption**, enter:
 - Caption style/instructions.
 - Select **Muse2API tự động** (self-hosted gateway) or **Sao chép lệnh / dán phản hồi Muse** (manual).
 
-Muse receives only movie title, EP file names, episode numbers, proposed time slots, and style guidance. **No video bytes, bearer tokens, Google refresh tokens, or private Drive URLs are sent to Muse.** Muse cannot actually watch the scenes in this mode, so generic captions are safer than inventing plot details. Scheduling slots are calculated by Anpi Drama according to your settings; Muse must return matching per-episode timestamps, and you can manually edit each approved item.
+Muse receives only movie title, EP file names, episode numbers, proposed time slots, and style guidance. **No video bytes, bearer tokens, Google refresh tokens, or private Drive URLs are sent to Muse.** Muse cannot actually watch the scenes in this mode, so generic captions are safer than inventing plot details. Base scheduling slots are calculated by Anpi Drama according to your settings. Muse may recommend times up to 90 minutes earlier/later than the base slot, but must keep the Vietnam-local calendar day, episode order and unique posting times. You can manually adjust and approve each resulting item. A publish request is only queued after your explicit approval.
 
 ### Automatic mode (Muse2API)
 
@@ -38,7 +38,7 @@ Redeploy Vercel. The back-end sends a non-streaming chat-completions request and
 2. Enter settings in Step 3, select the manual mode and click **Tạo lệnh gửi Muse**.
 3. Click **Sao chép lệnh**. Paste into the Muse chat you control.
 4. Ask Muse to return **only JSON**, then paste the entire answer into **Dán JSON Muse trả về**.
-5. Click **Đọc và kiểm tra JSON**. The server verifies exact episode list and expected timestamps.
+5. Click **Đọc và kiểm tra JSON**. The server verifies episode list and proposed times against the 90-minute/day/order safety limits.
 6. For more than eight episodes, repeat on the next batch. Each response is a draft, not a publishing instruction.
 7. Check/edit scheduled time and caption for each episode, then click **Duyệt và lưu chiến dịch**.
 
