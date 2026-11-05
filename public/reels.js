@@ -141,7 +141,8 @@ async function prepareBatch(){
   checkFreshness();
   const offset=pendingOffset();
   if(offset<0){renderDrafts();return show("Tất cả tập đã có bản nháp. Có thể xem trước và lưu chiến dịch.");}
-  const data=await api("/muse/prepare",getInputs(offset));
+  const manualOptions=getInputs(offset);manualOptions.limit=Math.min(30,manualOptions.episodes.length-offset);
+  const data=await api("/muse/prepare",manualOptions);
   currentBatch={offset,entries:data.entries};
   $("musePrompt").value=data.prompt;
   $("museProgress").textContent="Đã tạo lệnh cho "+data.entries.length+" tập, bắt đầu từ EP"+data.entries[0].episode+".";
