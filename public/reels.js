@@ -88,6 +88,8 @@ function signature(){
 }
 function resetPlan(){
   drafts.clear();draftFingerprint="";currentBatch=null;
+  videoStatuses.clear();videoBatchId=null;
+  if(videoRefreshTimer){clearInterval(videoRefreshTimer);videoRefreshTimer=null;}
   const p=$("musePrompt"),r=$("museReply");if(p)p.value="";if(r)r.value="";
   renderDrafts();
 }
@@ -186,7 +188,7 @@ async function prepareBatch(all=false){
   checkFreshness();
   const offset=pendingOffset();
   if(offset<0){renderDrafts();return show("Tất cả tập đã có bản nháp. Có thể xem trước và lưu chiến dịch.");}
-  const manualOptions=getInputs(offset);manualOptions.limit=Math.min(30,manualOptions.episodes.length-offset);
+  const manualOptions=getInputs(offset);manualOptions.limit=all?selection.size:Math.min(30,manualOptions.episodes.length-offset);
   const data=await api("/muse/prepare",manualOptions);
   currentBatch={offset,entries:data.entries};
   $("musePrompt").value=data.prompt;
@@ -206,8 +208,83 @@ function mergeDraftPlan(plan,entries=currentBatch?.entries){
   $("museProgress").textContent=next<0?"Đã có đủ "+selection.size+"/"+selection.size+" tập. Kiểm tra và duyệt.":"Đã hoàn thành "+drafts.size+"/"+selection.size+" tập. Còn "+(selection.size-drafts.size)+" tập.";
 }
 let generating=false;
+async function loadVideoBatch(batchId){
+  const data=await api("/ai/video/status?batch="+encodeURIComponent(batchId));
+  const expected=data.items.map(x=>Number(x.episode)).sort((a,b)=>a-b);
+  const selected=getInputs().episodes;
+  if(selected.length!==expected.length||selected.some((n,i)=>n!==expected[i]))
+    throw Error("Batch Gemini có "+expected.length+" tập khác với lựa chọn hiện tại. Hãy chọn đúng các tập của chiến dịch đã tạo.");
+  if(!draftFingerprint)draftFingerprint=signature();
+  videoStatuses.clear();
+  for(const item of data.items){
+    const number=Number(item.episode);
+    videoStatuses.set(number,{status:item.status,error:item.error});
+    if(item.status==="ready"&&item.caption&&!drafts.has(number)){
+      drafts.set(number,{episode:number,scheduledAt:item.scheduled_at,caption:item.caption,summary:item.summary||""});
+    }
+  }
+  renderDrafts();
+  const completed=data.items.filter(x=>x.status==="ready").length;
+  const failed=data.items.filter(x=>x.status==="failed").length;
+  $("museProgress").textContent="Gemini đọc MP4: "+completed+"/"+data.batch.total+" tập hoàn thành"+
+    (failed?", "+failed+" tập lỗi.":"")+
+    ". Worker GitHub Actions xử lý từng video, không cần giữ trang mở.";
+  $("videoRetry").classList.toggle("hidden",!failed);
+  if(completed+failed===data.batch.total&&videoRefreshTimer){
+    clearInterval(videoRefreshTimer);videoRefreshTimer=null;
+  }
+  return data;
+}
+async function startVideoBatch(){
+  if(!selection.size)throw Error("Cần chọn ít nhất một tập từ Google Drive");
+  checkFreshness();
+  if(videoBatchId)throw Error("Đang theo dõi một lượt Gemini. Hãy khôi phục tiến trình thay vì tạo lượt trùng.");
+  const input=getInputs(0,selection.size);
+  if(!input.title)throw Error("Cần điền tên phim");
+  generating=true;$("museGenerate").disabled=true;
+  try{
+    $("museProgress").textContent="Đang lưu hàng đợi phân tích MP4 cho "+selection.size+" tập...";
+    const batch=await api("/ai/video/start",input);
+    videoBatchId=batch.batchId;
+    sessionStorage.setItem("anpi-video-batch:"+input.folderId,videoBatchId);
+    await loadVideoBatch(videoBatchId);
+    if(videoRefreshTimer)clearInterval(videoRefreshTimer);
+    videoRefreshTimer=setInterval(()=>{if(videoBatchId)loadVideoBatch(videoBatchId).catch(e=>show(e.message,true));},30000);
+    show("Đã xếp hàng đợi "+batch.total+" MP4. Cùng một prompt áp dụng cho mọi tập; kết quả được lưu trong Supabase.");
+  }finally{generating=false;$("museGenerate").disabled=false;renderDrafts();}
+}
+async function restoreVideoBatch(){
+  const folder=$("series").value;if(!folder)throw Error("Hãy chọn phim trước khi khôi phục");
+  const saved=sessionStorage.getItem("anpi-video-batch:"+folder);
+  const latest=saved?{batch:{id:saved}}:await api("/ai/video/latest?folder="+encodeURIComponent(folder));
+  if(!latest.batch?.id)throw Error("Chưa có chiến dịch phân tích video nào trong thư mục phim này");
+  videoBatchId=latest.batch.id;
+  const data=await api("/ai/video/status?batch="+encodeURIComponent(videoBatchId));
+  const nums=data.items.map(x=>Number(x.episode));
+  if(!episodes.length)throw Error("Chưa tải danh sách tập từ Google Drive");
+  selection.clear();
+  for(const n of nums){
+    const file=episodes.find(x=>x.episode===n);
+    if(!file)throw Error("Google Drive không còn tập EP"+n+" của chiến dịch");
+    selection.set(n,file);
+  }
+  drafts.clear();videoStatuses.clear();draftFingerprint="";
+  episodeUI();renderDrafts();
+  await loadVideoBatch(videoBatchId);
+  if(videoRefreshTimer)clearInterval(videoRefreshTimer);
+  videoRefreshTimer=setInterval(()=>{if(videoBatchId)loadVideoBatch(videoBatchId).catch(e=>show(e.message,true));},30000);
+  show("Đã khôi phục tiến trình Gemini của "+nums.length+" tập.");
+}
+async function retryVideoBatch(){
+  if(!videoBatchId)throw Error("Hãy khôi phục tiến trình Gemini trước");
+  const result=await api("/ai/video/retry",{batchId:videoBatchId});
+  await loadVideoBatch(videoBatchId);
+  if(!videoRefreshTimer)videoRefreshTimer=setInterval(()=>loadVideoBatch(videoBatchId).catch(e=>show(e.message,true)),30000);
+  show("Đã xếp lại "+result.retry+" tập lỗi. Các tập đã hoàn thành được giữ nguyên.");
+}
 async function autoGenerate(){
   if(generating)return;
+  if($("planProvider").value==="gemini"&&$("captionSource").value==="video")return startVideoBatch();
   checkFreshness();
   let offset=pendingOffset();
   if(offset<0){renderDrafts();return show("Đã đủ caption tất cả tập.");}
@@ -322,10 +399,12 @@ export function initReelsStudio(){
     for(const item of events||[]){const row=el("div",new Date(item.created_at).toLocaleString("vi-VN",{timeZone:zone})+" · "+item.action+" · "+JSON.stringify(item.details||{}),"page");root.append(row);}
     if(!events?.length)root.textContent="Chưa có nhật ký.";
   })());
-  $("musePrepare").onclick=()=>handle(prepareBatch());
+  $("musePrepare").onclick=()=>handle(prepareBatch(true));
   $("museGenerate").onclick=()=>handle(autoGenerate());
+  $("resumeVideoBatch").onclick=()=>handle(restoreVideoBatch());
+  $("videoRetry").onclick=()=>handle(retryVideoBatch());
   $("museCopy").onclick=async()=>{
-    if(!$("musePrompt").value)await handle(prepareBatch());
+    if(!$("musePrompt").value)await handle(prepareBatch(true));
     if(!$("musePrompt").value)return;
     try{await navigator.clipboard.writeText($("musePrompt").value);show("Đã sao chép lệnh; gửi Muse và dán JSON trả về.");}
     catch{$("musePrompt").select();show("Hãy chọn rồi sao chép lệnh trong ô văn bản.");}
@@ -338,15 +417,16 @@ export function initReelsStudio(){
     const muse=$("planProvider").value==="muse",automatic=muse&&$("museMode").value==="gateway";
     $("museManualFields").classList.toggle("hidden",!muse);
     $("museGenerate").classList.toggle("hidden",muse&&!automatic);
-    $("museGenerate").textContent=muse?"Tạo kế hoạch bằng Muse":"Tạo caption và lịch cho tất cả tập bằng Gemini";
+    $("museGenerate").textContent=muse?"Tạo kế hoạch bằng Muse":$("captionSource").value==="video"?"Phân tích MP4 và tạo caption cho toàn bộ tập":"Tạo caption từ metadata cho toàn bộ tập";
     $("musePrepare").classList.toggle("hidden",!muse||automatic);
     $("museCopy").classList.toggle("hidden",!muse||automatic);
     $("musePrompt").closest("label").classList.toggle("hidden",!muse||automatic);
     $("museReply").closest("label").classList.toggle("hidden",!muse||automatic);
     $("museParse").classList.toggle("hidden",!muse||automatic);
   }
-  $("planProvider").onchange=updateProvider;
-  $("museMode").onchange=updateProvider;updateProvider();
+  $("planProvider").onchange=()=>{if($("planProvider").value==="muse")$("captionSource").value="metadata";updateProvider();};
+  $("museMode").onchange=updateProvider;
+  $("captionSource").onchange=updateProvider;updateProvider();
   for(const id of ["startDate","startTime","perDay","spacing","aiTitle","museInstructions"]){
     $(id).addEventListener("change",()=>{if(draftFingerprint&&draftFingerprint!==signature())resetPlan();});
   }
