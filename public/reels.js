@@ -84,6 +84,9 @@ function getInputs(offset=0,limit=8){
 }
 function signature(){
   const x=getInputs();delete x.offset;delete x.limit;delete x.name;delete x.pageId;
+  x.provider=$("planProvider").value;
+  x.captionSource=$("captionSource").value;
+  x.museMode=$("museMode").value;
   return JSON.stringify(x);
 }
 function resetPlan(){
@@ -173,8 +176,8 @@ function renderDrafts(){
     }else cap.append(el("span","Chưa có caption — nhập JSON Muse","muted"));
     row.append(cap);
     const status=videoStatuses.get(n)||{};
-    const label=status.status==="failed"?"Lỗi":status.status==="running"?"Đang đọc MP4":
-      status.status==="queued"?"Chờ xử lý":item?"Đã có caption":"Chưa tạo";
+    const label=item?"Đã có caption":status.status==="failed"?"Lỗi":status.status==="running"?"Đang đọc MP4":
+      status.status==="queued"?"Chờ xử lý":"Chưa tạo";
     const cell=el("td","","state-col");
     cell.append(el("span",label,"ep-state "+(status.status==="failed"?"failed":item?"ready":"")));
     if(status.status==="failed"&&status.error)cell.append(el("div",status.error,"muted"));
@@ -355,6 +358,8 @@ async function manualParse(){
   const driveMode=$("planProvider").value==="muse"&&$("museMode").value==="manual"&&$("captionSource").value==="connected_drive";
   const data=await api("/muse/parse",{...getInputs(0,getInputs().episodes.length),museReadDrive:driveMode,reply:cleaned});
   currentBatch={offset:0,entries:data.entries};
+  videoStatuses.clear();
+  if(videoRefreshTimer){clearInterval(videoRefreshTimer);videoRefreshTimer=null;}
   mergeDraftPlan(data.plan,data.entries);
   if(parsed.cleanup?.status)show("Đã nhập "+rows.length+" tập. Trạng thái dọn workspace Muse: "+parsed.cleanup.status+". Đây là thông tin Muse báo, chưa được Anpi Drama xác minh.");
   else show("Đã nhập "+rows.length+" tập. Hiện có "+drafts.size+"/"+numbers.size+" caption.");
@@ -466,6 +471,7 @@ export function initReelsStudio(){
     $("museParse").classList.toggle("hidden",!muse||automatic);
     $("captionSource").disabled=!muse||automatic;
     if(!muse||automatic)$("captionSource").value="metadata";
+    renderDrafts();
   }
   $("planProvider").onchange=()=>{if($("planProvider").value==="muse"&&$("museMode").value==="manual")$("captionSource").value="connected_drive";updateProvider();};
   $("museMode").onchange=()=>{if($("planProvider").value==="muse"&&$("museMode").value==="manual")$("captionSource").value="connected_drive";updateProvider();};
