@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b0d17"><title>PineDrama Web Studio</title>
+<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b0d17"><title>Anpi Drama Studio</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#0b0d17;color:#f2f0fa;font:14px system-ui,sans-serif}header{border-bottom:1px solid #292941;background:#121421;padding:14px 5%;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h1{font-size:20px;margin:0;letter-spacing:-.6px}h1 b{color:#bd96ff}h2{font-size:20px;margin-top:0}main{max-width:1200px;margin:auto;padding:20px}button,input,select,textarea{font:inherit;padding:10px 12px;border-radius:10px;border:1px solid #393a51;background:#1c2031;color:inherit}button{cursor:pointer;transition:border-color .15s,background .15s}button:hover:not(:disabled){border-color:#ba9bfc}button:disabled{opacity:.5;cursor:not-allowed}.primary{background:#7547ce;border-color:#7547ce;color:white;font-weight:650}.primary:hover:not(:disabled){background:#8557de}.danger{background:#4a2030;border-color:#7c354d;color:#ffb8c6}.hidden{display:none!important}.tabs{display:flex;gap:8px;margin-bottom:20px;overflow-x:auto}.tabs button.active{background:#7547ce;border-color:#9b72ef;font-weight:650}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.toolbar input{flex:1;min-width:180px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:15px;margin-top:20px}.movie{text-align:left;padding:0;overflow:hidden;background:#181a2a;border-radius:14px}.cover{height:225px;background:linear-gradient(145deg,#3a2256,#8667af);display:grid;place-items:center;font-size:40px}.cover img{height:100%;width:100%;object-fit:cover}.movie .info{padding:11px}.movie strong{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-height:40px;font-size:13px}small,.muted{color:#a4a5bb}.panel{border:1px solid #31334a;border-radius:14px;background:#181b2a;padding:18px;margin:16px 0}.episodes{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:7px;margin:15px 0}.episodes button:disabled{opacity:.35}.episodes button.on-drive{border-color:#34a853;background:#182e24;color:#81e69b;font-weight:600}.player{display:block;background:black;width:100%;max-width:320px;aspect-ratio:9/16;margin:18px auto;border-radius:12px}.statline{margin:16px 0;color:#bda7e0;font-size:13px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{max-width:100%}.notice{color:#c0b1d7;line-height:1.6}.work{border-bottom:1px solid #34364a;padding:12px 0}.work:last-child{border:0}code{background:#121422;padding:2px 6px;border-radius:6px;color:#d6bfff;overflow-wrap:anywhere}#error{color:#ffb1ba;white-space:pre-wrap}#message{color:#bfa4ff;white-space:pre-wrap;margin:8px 0}
 .header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -93,10 +93,32 @@
   .manager-card{grid-template-columns:1fr}
   .manager-poster{width:76px;height:110px}
 }
+
+/* Anpi Reels panel uses the site's existing tabs, panels and form controls. */
+#reels .layout{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px}
+#reels .field{display:flex;flex-direction:column;gap:7px;margin:12px 0}
+#reels .field input,#reels .field textarea,#reels .field select{width:100%;min-width:0}
+#reels .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin:0}
+#reels .page{border:1px solid #34354b;border-radius:10px;padding:12px;margin:8px 0;display:flex;justify-content:space-between;align-items:center;gap:10px}
+#reels .episodes{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+#reels .ep{font-size:12px;padding:8px 10px}
+#reels .ep.selected{background:#7547ce;border-color:#a78bfa}
+#reels .pill{display:inline-block;border:1px solid #46435c;background:#24263a;border-radius:99px;padding:6px 10px;margin:6px 7px 0 0}
+#reels .scroll{overflow-x:auto}
+#reels table{width:100%;border-collapse:collapse;font-size:12px}
+#reels td,#reels th{text-align:left;border-bottom:1px solid #31334a;padding:10px 8px;vertical-align:top}
+#reels #notice{white-space:pre-wrap;line-height:1.5}
+#reels .ok{color:#8dddab}#reels .error{color:#ff9ea4}
+#reels .anpi-plan-item{border:1px solid #36364d;border-radius:12px;padding:13px;margin-bottom:10px;background:#121625}
+#reels .anpi-plan-item textarea{width:100%;min-height:75px;margin-top:8px}
+#reels .anpi-plan-item input{width:100%}
+#reels .anpi-plan-header{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+#reels .anpi-muse-panel{border-color:#694da0}
+@media(max-width:650px){#reels .layout{grid-template-columns:1fr}#reels .panel{padding:14px}#reels table{min-width:630px}}
 </style><script src="https://accounts.google.com/gsi/client" async defer></script></head>
-<body><div style="background:#272044;padding:9px 5%;font:600 14px system-ui;text-align:center"><a href="/reels.html" style="color:#e0ceff">Mở Facebook Reels Studio — quản lý Fanpage, AI Caption và lịch đăng</a></div>
+<body>
 <header>
-  <h1><b>PINE</b>DRAMA <span style="font-weight:400;color:#a3a3b9">STUDIO</span></h1>
+  <h1><b>ANPI</b> DRAMA <span style="font-weight:400;color:#a3a3b9">STUDIO</span></h1>
   <div id="headerActions" class="header-right hidden">
     <span id="driveHeaderBadge" class="drive-pill">Drive: Chưa kết nối</span>
     <button id="headerConnectDrive" class="btn-sm primary">Liên kết Google Drive</button>
@@ -117,10 +139,11 @@
 
   <section id="appView" class="hidden">
     <nav class="tabs">
-      <button class="active" data-tab="catalog">Kho phim (PineDrama)</button>
+      <button class="active" data-tab="catalog">Kho phim</button>
       <button data-tab="dramadownloader">DramaDownloader → Drive</button>
       <button data-tab="manager">Manager (Drive)</button>
       <button data-tab="drive">Google Drive</button>
+       <button data-tab="reels">Facebook Reels / Muse</button>
     </nav>
     <div id="bgTransferBanner" class="bg-transfer-banner hidden"></div>
     <p id="message"></p>
@@ -290,6 +313,43 @@
         </div>
       </div>
     </section>
+    <section id="reels" class="hidden">
+<div class="panel"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Facebook Reels Studio</h2><button id="reelsRefresh" class="detail-secondary">Làm mới</button></div><div id="statusPanel"></div><p id="notice" aria-live="polite"></p><p class="muted">Chỉ đăng video bạn có quyền sử dụng. Giờ đặt lịch: Việt Nam (GMT+7). Đăng tự động do GitHub Actions thực hiện, có thể bị trễ so với lịch.</p></div>
+<div class="layout">
+<section class="panel"><h2>1. Kết nối tài khoản</h2><p class="muted">Dùng OAuth chính thức. Token được mã hóa và chỉ lưu ở server.</p><div class="row"><button id="google">Kết nối Google Drive</button><button id="meta">Kết nối Meta / Fanpage</button></div><h3>Fanpage</h3><div id="pages">Chưa kết nối.</div></section>
+<section class="panel"><h2>2. Chọn phim từ Google Drive</h2><div class="row"><button id="loadSeries" class="small">Tải danh sách thư mục phim</button></div><label class="field">Phim / Collection ID<select id="series"><option value="">Chọn phim</option></select></label><div class="row"><button id="loadEpisodes" class="small">Xem tập</button><button id="selectAll" class="small">Chọn tất cả</button><button id="clearAll" class="small">Bỏ chọn</button></div><div class="grid"><label class="field">Từ tập<input id="episodeFrom" type="number" min="1" value="1"></label><label class="field">Đến tập<input id="episodeTo" type="number" min="1" value="10"></label></div><div class="row"><button id="selectRange" class="small">Chọn khoảng tập</button></div><p class="muted" id="selection">Đã chọn 0 tập</p><div id="episodes" class="episodes"></div></section>
+<section class="panel anpi-muse-panel">
+  <h2>3. Muse lập chiến dịch và caption</h2>
+  <p class="muted">Chọn Fanpage và các tập ở bước 1–2. Muse trả bản nháp theo từng tập; bạn xem và duyệt trước khi lưu lịch đăng. Không gửi token hoặc liên kết Drive cho Muse.</p>
+  <label class="field">Tên chiến dịch<input id="campaign" maxlength="100" placeholder="Ví dụ: Phim A - 10 tập"></label>
+  <label class="field">Fanpage sẽ đăng<select id="pageSelect"><option value="">Chọn Fanpage</option></select></label>
+  <label class="field">Tên phim gửi Muse<input id="aiTitle" maxlength="120" placeholder="Tên phim tiếng Việt"></label>
+  <div class="grid"><label class="field">Ngày bắt đầu<input id="startDate" type="date"></label><label class="field">Giờ đăng đầu tiên<input id="startTime" type="time" value="19:00"></label></div>
+  <div class="grid"><label class="field">Số tập/ngày<input id="perDay" type="number" min="1" max="24" value="2"></label><label class="field">Cách nhau (phút)<input id="spacing" type="number" min="1" max="1440" value="60"></label></div>
+  <label class="field">Yêu cầu cho Muse<textarea id="museInstructions" rows="3" maxlength="1200" placeholder="Tạo caption ngắn, có điểm nhấn, không spoil và mỗi tập có ý khác nhau."></textarea></label>
+  <label class="field">Chế độ Muse
+    <select id="museMode"><option value="gateway">Muse2API tự động</option><option value="manual">Sao chép lệnh / dán phản hồi Muse</option></select>
+  </label>
+  <div class="row">
+    <button id="museGenerate" class="primary">Tạo kế hoạch với Muse</button>
+    <button id="musePrepare" class="detail-secondary">Tạo lệnh gửi Muse</button>
+    <button id="museCopy" class="detail-secondary">Sao chép lệnh</button>
+  </div>
+  <p id="museProgress" class="muted" aria-live="polite">Chưa tạo kế hoạch.</p>
+  <label class="field">Lệnh Muse (chỉ gồm thông tin phim, tập và lịch)<textarea id="musePrompt" rows="6" readonly placeholder="Nhấn Tạo lệnh gửi Muse..."></textarea></label>
+  <label class="field">Dán JSON Muse trả về để nhập kế hoạch thủ công<textarea id="museReply" rows="5" placeholder='{"items":[{"episode":1,"scheduledAt":"...","caption":"..."}]}'></textarea></label>
+  <div class="row"><button id="museParse" class="detail-secondary">Đọc và kiểm tra JSON</button><button id="museReset" class="detail-secondary">Xóa bản nháp</button></div>
+  <h3>Kiểm tra lịch và caption từng tập</h3>
+  <p id="museDraftCount" class="muted">Chưa có bản nháp. Mỗi lô gồm tối đa 8 tập.</p>
+  <div id="musePreview" class="anpi-plan-list"></div>
+  <div class="row"><button id="create" class="primary" disabled>Duyệt và lưu chiến dịch vào Supabase</button></div>
+  <p class="muted">Khi nhấn lưu, hệ thống sẽ xếp lịch đăng thực tế qua worker Meta. Muse không được tự đăng hoặc sửa token.</p>
+</section>
+<section class="panel"><h2>4. Chiến dịch đã tạo</h2><div id="campaigns">Chưa có chiến dịch.</div><p class="muted">Trạng thái lịch được lưu ở Supabase, không mất khi đóng website.</p></section>
+</div>
+<section class="panel"><h2>5. Theo dõi lịch / đối soát Meta</h2><div class="scroll"><table><thead><tr><th>Tập / file</th><th>Page</th><th>Giờ Việt Nam</th><th>Trạng thái</th><th>Meta Video</th><th>Thao tác</th></tr></thead><tbody id="jobs"></tbody></table></div></section>
+<section class="panel"><h2>6. Nhật ký thao tác</h2><div class="row"><button class="small" id="loadAudit">Xem nhật ký</button></div><div id="audit" class="scroll muted">Nhật ký được lưu trong Supabase.</div></section>
+</section>
   </section>
 </main>
 <script type="module" src="/app.js"></script>

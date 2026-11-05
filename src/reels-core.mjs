@@ -85,7 +85,7 @@ export function clientConfig(){
   return {supabase:!!(process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY),
     google:!!(process.env.GOOGLE_CLIENT_ID&&process.env.GOOGLE_CLIENT_SECRET),
     meta:!!(process.env.META_APP_ID&&process.env.META_APP_SECRET),
-    gemini:!!process.env.GEMINI_API_KEY,muse:!!process.env.MUSEAI_CAPTION_ENDPOINT,
+    gemini:!!process.env.GEMINI_API_KEY,muse:!!(process.env.MUSE2API_BASE_URL&&process.env.MUSE2API_API_KEY),
     worker:"github_actions",timezone:TIMEZONE};
 }
 export async function fetchJSON(url,{method="GET",body,headers={},timeout=20000}={}){
@@ -119,8 +119,8 @@ export async function driveList(token,q,fields="nextPageToken,files(id,name,mime
 export async function driveSeries(token){
   const roots=await driveList(token,"name = 'PineDrama-Library' and mimeType = 'application/vnd.google-apps.folder' and trashed = false");
   if(!roots.length)return [];
-  const root=roots[0];const folders=await driveList(token,"'"+root.id+"' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false");
-  return folders.map(x=>({id:x.id,name:x.name}));
+  const root=roots[0];const folders=await driveList(token,"'"+root.id+"' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false","nextPageToken,files(id,name,mimeType,description,appProperties)");
+  return folders.map(x=>({id:x.id,name:x.name,title:String(x.appProperties?.title||x.name).slice(0,160)}));
 }
 export async function driveEpisodes(token,folderId){
   if(!validId(folderId))throw Error("ID thư mục Drive không hợp lệ");
