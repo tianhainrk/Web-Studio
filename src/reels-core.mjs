@@ -1,5 +1,12 @@
 import {createCipheriv,createDecipheriv,createHmac,randomBytes,timingSafeEqual} from "node:crypto";
 
+// The OAuth provider returns via a top-level cross-site GET navigation.
+// Only these exact callback paths may bypass the generic cross-site filter;
+// the callback handler must still validate the signed, short-lived OAuth state.
+export function isOAuthCallbackRequest(method,pathname){
+  return method==="GET" && /^\/reels\/oauth\/(?:google|meta)\/callback$/.test(pathname);
+}
+
 export const GRAPH_VERSION = "v26.0";
 export const TIMEZONE = "Asia/Ho_Chi_Minh";
 

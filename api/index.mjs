@@ -1,3 +1,4 @@
+import {isOAuthCallbackRequest} from "../src/reels-core.mjs";
 import {reelsRoute} from "../src/reels-api.mjs";
 import {discoverLibrary, FEEDS} from "../src/library.mjs";
 import {discover, playlist, resolve} from "../src/provider.mjs";
@@ -55,7 +56,7 @@ export default async function handler(req,res){
     if(p==="/health")return send(res,200,{ok:true,configured:PASS.length>=12&&SECRET.length>=32});
     if(PASS.length<12||SECRET.length<32)return send(res,503,{error:"Set STUDIO_PASSWORD (12+) and SESSION_SECRET (32+) in Vercel"});
     if(req.headers.origin&&new URL(req.headers.origin).host!==req.headers.host)return send(res,403,{error:"Origin rejected"});
-    if(req.headers["sec-fetch-site"]==="cross-site")return send(res,403,{error:"Cross-site rejected"});
+    if(req.headers["sec-fetch-site"]==="cross-site"&&!isOAuthCallbackRequest(req.method,p))return send(res,403,{error:"Cross-site rejected"});
     if(p==="/login"&&req.method==="POST"){
       const data=await input(req);
       const hashed=s=>createHmac("sha256",SECRET).update(String(s)).digest("hex");
