@@ -74,7 +74,7 @@ async function uploadDriveVideo(item,folderId){
   if(!file.ok||!file.body)throw Error("Không thể đọc video từ Drive (HTTP "+file.status+")");
   const uploaded=await fetch(location,{
     method:"POST",duplex:"half",
-    headers:{"Content-Type":"video/mp4","X-Goog-Upload-Offset":"0","X-Goog-Upload-Command":"upload, finalize"},
+    headers:{"Content-Type":"video/mp4","Content-Length":String(size),"X-Goog-Upload-Offset":"0","X-Goog-Upload-Command":"upload, finalize"},
     body:file.body,signal:AbortSignal.timeout(420000)
   });
   const result=await uploaded.json().catch(()=>null);
