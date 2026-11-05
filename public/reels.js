@@ -176,11 +176,11 @@ function planReview(){
   let previous=-Infinity,dayIndex=0;
   const counts=balancedCounts(nums.length),start=Date.parse($("startDate").value+"T00:00:00+07:00");
   for(let i=0;i<nums.length;i++){
+    while(i>=counts.slice(0,dayIndex+1).reduce((a,b)=>a+b,0))dayIndex++;
     const item=drafts.get(nums[i]);if(!item)continue;
     const t=Date.parse(item.scheduledAt);
     if(t-previous<15*60000)ordered=false;previous=t;
-    while(i>=counts.slice(0,dayIndex+1).reduce((a,b)=>a+b,0))dayIndex++;
-    const expected=new Date(start+dayIndex*86400000).toISOString().slice(0,10);
+    const expected=vnDate(new Date(start+dayIndex*86400000).toISOString());
     if(vnDate(item.scheduledAt)!==expected||vnMinute(item.scheduledAt)<420||vnMinute(item.scheduledAt)>1380||t<=Date.now()+60000)validDates=false;
   }
   return {nums,missing,invalid,ordered,validDates,ready:nums.length>0&&!missing.length&&!invalid.length&&ordered&&validDates&&draftFingerprint===signature()};
