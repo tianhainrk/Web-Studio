@@ -92,7 +92,7 @@ export async function requestMusePlan(prompt,batch){
   requiredConfig(["MUSE2API_BASE_URL","MUSE2API_API_KEY"]);
   const response=await fetch(gatewayEndpoint(process.env.MUSE2API_BASE_URL),{method:"POST",headers:{
     "Authorization":"Bearer "+process.env.MUSE2API_API_KEY,"Content-Type":"application/json"
-  },body:JSON.stringify({model:process.env.MUSE2API_MODEL||"muse-spark",stream:false,messages:[{role:"user",content:prompt}],temperature:0.4,max_tokens:3500}),signal:AbortSignal.timeout(45000)});
+  },body:JSON.stringify({model:process.env.MUSE2API_MODEL||"muse-chat",stream:false,messages:[{role:"user",content:prompt}],temperature:0.4,max_tokens:3500}),redirect:"error",signal:AbortSignal.timeout(45000)});
   if(!response.ok)throw Error("Muse2API HTTP "+response.status+"; kiểm tra gateway, tài khoản và API key");
   const data=await response.json();
   return validateMuseReply(data?.choices?.[0]?.message?.content,batch);
