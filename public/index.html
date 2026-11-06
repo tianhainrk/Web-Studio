@@ -368,6 +368,7 @@
     <nav class="rd-nav" aria-label="Quản lý Facebook Reels">
       <button type="button" data-rd-view="overview" class="active">Tổng quan</button>
       <button type="button" data-rd-view="campaigns">Chiến dịch</button>
+      <button type="button" data-rd-view="analytics" class="hidden">Phân tích</button>
     </nav>
     <div id="rdOverview" class="rd-view">
       <div class="rd-section-title rd-week-header">
@@ -398,6 +399,12 @@
       <div class="rd-section-title"><div><h3>Chiến dịch của Page</h3><p>Không hiển thị lẫn lịch của các Fanpage khác</p></div></div>
       <div id="rdCampaignList" class="rd-list"></div>
     </div>
+    <section id="rdAnalyticsView" class="rd-view hidden" aria-label="Phân tích Facebook Reels">
+      <iframe id="rdAnalyticsFrame" title="Anpi Drama · Reels Analytics"
+        data-src="/reels-analytics.html" loading="lazy"
+        style="display:block;width:100%;min-height:1000px;border:0;background:#0b0d17"
+      ></iframe>
+    </section>
   </div>
 
   <dialog id="rdConnectDialog" class="rd-dialog" aria-labelledby="rdConnectTitle">
