@@ -98,3 +98,13 @@ test("Analytics remains feature gated until verified Meta access",()=>{
   assert.match(sql,/enable row level security/g);
   assert.match(sql,/claim_reel_analytics_requests/);
 });
+
+test("Manual Analytics workflow can run without the scheduled-sync repo variable",()=>{
+  const yaml=readFileSync(new URL("../.github/workflows/reels-analytics.yml",import.meta.url),"utf8");
+  const api=readFileSync(new URL("../src/reels-analytics-api.mjs",import.meta.url),"utf8");
+  assert.match(yaml,/workflow_dispatch:/);
+  assert.match(yaml,/github\.event_name != 'schedule'/);
+  assert.match(yaml,/branches: \[main\]/);
+  assert.match(api,/dispatch\.dispatched/);
+  assert.match(api,/GitHub HTTP/);
+});
