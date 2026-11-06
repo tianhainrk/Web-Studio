@@ -101,7 +101,7 @@ export async function reelsRoute(req,res,path){
       // Safe authenticated read: never fetch token_enc or return OAuth data.
       const pageRows=await db("reel_pages?select=page_id,name,active&order=name.asc&limit=100");
       const campaignRows=await db("reel_campaigns?select=id,page_id,status&limit=500");
-      const pageJobs=[];let partial=false;
+      const pageJobs=[];let partial=campaignRows.length>=500||pageRows.length>=100;
       for(let offset=0;offset<3000;offset+=1000){
         const rows=await db("reel_jobs?select=id,page_id,campaign_id,status,scheduled_at,updated_at,error&order=scheduled_at.asc&limit=1000&offset="+offset);
         pageJobs.push(...rows);
@@ -115,7 +115,7 @@ export async function reelsRoute(req,res,path){
       if(!/^\d+$/.test(pageId))return fail(res,400,"Fanpage ID không hợp lệ");
       const token=await metaPageToken(pageId);
       try{
-        const response=await fetchJSON(graph+"/"+pageId+"?"+new URLSearchParams({fields:"id,name",access_token:token}),{timeout:12000});
+        const response=await fetchJSON(graph+"/"+pageId+"?fields=id,name",{headers:{"Authorization":"Bearer "+token},timeout:12000});
         if(String(response.id)!==pageId)throw Error("Meta trả sai Fanpage ID");
         return json(res,200,{ok:true,name:String(response.name||"").slice(0,150)});
       }catch(err){
