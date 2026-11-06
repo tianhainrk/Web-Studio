@@ -354,7 +354,7 @@
   <div class="rd-shell">
     <header class="rd-head">
       <div><div class="rd-overline">ANPI DRAMA · SOCIAL STUDIO</div><h2>Facebook Reels</h2><p>Quản lý từng Fanpage, lịch đăng và chiến dịch tại một nơi.</p></div>
-      <div class="rd-head-actions"><button id="reelsRefresh" class="rd-quiet" type="button">↻ Làm mới</button><button id="rdConnect" class="rd-quiet" type="button">⚙ Kết nối</button><button id="rdNew" class="rd-primary" type="button">+ Chiến dịch</button></div>
+      <div class="rd-head-actions"><button id="reelsRefresh" class="rd-quiet" type="button">↻ Làm mới</button><button id="rdHealth" class="rd-quiet" type="button">Trạng thái các Page</button><button id="rdConnect" class="rd-quiet" type="button">⚙ Kết nối</button><button id="rdNew" class="rd-primary" type="button">+ Chiến dịch</button></div>
     </header>
     <div id="statusPanel" class="rd-config hidden"></div>
     <p id="notice" class="rd-notice" role="status" aria-live="polite"></p>
@@ -405,6 +405,8 @@
     <div class="rd-dialog-body">
       <p class="muted">Kết nối Google Drive để lấy phim, Meta để đăng lên Fanpage. OAuth được xử lý ở phía máy chủ.</p>
       <div class="rd-actions"><button id="google" type="button">+ Google Drive</button><button id="meta" type="button">+ Meta/Facebook</button></div>
+      <div class="rd-block-header"><div><h4>Kiểm tra đăng Reels theo Fanpage</h4><p>Phân biệt bài chờ đến giờ, bài quá hạn, chiến dịch tạm dừng và lỗi Meta.</p></div><button id="rdRefreshHealth" class="rd-quiet" type="button">↻ Kiểm tra</button></div>
+      <div id="rdQueueHealth" class="rd-list" aria-live="polite"></div>
       <div id="pages" class="rd-list"></div>
       <div class="rd-advanced"><button id="resumeVideoBatch" class="rd-quiet" type="button">Xem hàng đợi Gemini cũ</button><button id="videoRetry" class="rd-quiet hidden" type="button">Thử lại Gemini</button><button id="videoCancel" class="rd-danger hidden" type="button">Hủy hàng đợi Gemini cũ</button></div>
       <button id="loadAudit" class="rd-quiet" type="button">Xem nhật ký thao tác</button><div id="audit" class="rd-audit muted"></div>
