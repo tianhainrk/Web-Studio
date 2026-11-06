@@ -431,6 +431,7 @@ function editJob(id){
   $("rdJobTime").disabled=!editable;$("rdJobCaption").disabled=!editable;
   $("rdJobSave").classList.toggle("hidden",!editable);$("rdJobCancel").classList.toggle("hidden",!editable);
   $("rdJobReconcile").classList.toggle("hidden",!job.meta_video_id);
+  $("rdJobRetry").classList.toggle("hidden",!(job.status==="failed"&&String(job.error||"").startsWith("Meta upload HTTP 400:")));
   openDialog("rdJobDialog");
 }
 async function saveJob(){
@@ -441,6 +442,14 @@ async function saveJob(){
 async function cancelJob(){
   if(!confirm("Hủy lịch bài đăng này?"))return;
   await api("/jobs/cancel",{id:editingJob});closeDialog("rdJobDialog");await refreshReports();
+}
+async function retryFailedJob(){
+  if(!editingJob)throw Error("Chưa chọn bài đăng cần thử lại");
+  if(!confirm("Thử đăng lại bài này sau khi sửa lỗi upload Meta? Hệ thống chỉ cho phép tự thử lại khi lần trước bị từ chối trước bước phát hành."))return;
+  const result=await api("/jobs/retry",{id:editingJob});
+  closeDialog("rdJobDialog");
+  await refreshReports();
+  show(result.note||"Đã đưa bài đăng về hàng đợi.");
 }
 async function reconcileJob(){
   const result=await api("/jobs/reconcile",{id:editingJob});
@@ -526,6 +535,7 @@ function initReelsStudio(){
   $("rdJobSave").onclick=()=>handle(saveJob);
   $("rdJobCancel").onclick=()=>handle(cancelJob);
   $("rdJobReconcile").onclick=()=>handle(reconcileJob);
+  $("rdJobRetry").onclick=()=>handle(retryFailedJob);
   $("loadAudit").onclick=()=>handle(loadAudit);
   $("resumeVideoBatch").onclick=()=>handle(restoreVideoBatch);
   $("videoCancel").onclick=()=>handle(cancelVideoBatch);
