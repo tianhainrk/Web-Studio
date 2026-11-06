@@ -31,7 +31,9 @@ function checkedAccounts(){
 function syncPlatformFields(){
   const targets=checkedAccounts(),tiktok=targets.some(x=>x.provider==="tiktok");
   $("mpTikFields").classList.toggle("hidden",!tiktok);
-  $("mpYtFields").classList.toggle("hidden",!targets.some(x=>x.provider==="youtube"));
+  const youtube=targets.some(x=>x.provider==="youtube");
+  $("mpYtFields").classList.toggle("hidden",!youtube);
+  $("mpTitle").required=youtube;
   if(tiktok&&!config.tiktokMediaReady)notify("TikTok: cần cấu hình TIKTOK_VERIFIED_MEDIA_HOST và xác minh URL media trước khi tạo lịch.",true);
 }
 function renderSeries(){
@@ -75,7 +77,11 @@ function renderJobs(){
 }
 async function loadJobs(){const data=await api("/jobs");jobs=data.jobs||[];renderJobs();}
 async function loadAll(){
-  const [c,a,j]=await Promise.all([api("/config"),api("/accounts"),api("/jobs")]);
+  const c=await api("/config");
+  config=c;
+  if(!c.enabled){$("mpCreate").disabled=true;$("mpYoutubeConnect").disabled=true;
+    $("mpTikTokConnect").disabled=true;notify("Bật MULTIPLATFORM_ENABLED=true trên Vercel sau khi áp dụng SQL.",true);return;}
+  const [a,j]=await Promise.all([api("/accounts"),api("/jobs")]);
   config=c;accounts=a.accounts||[];jobs=j.jobs||[];
   $("mpConnected").textContent=accounts.length+" kênh đã liên kết";
   $("mpWorkerState").textContent=config.workerEnabled?"Worker đã bật":"Worker đang tắt (an toàn)";
@@ -127,7 +133,7 @@ async function schedule(e){
   }finally{btn.disabled=!config.enabled;}
 }
 export async function initMultiplatform(){
-  if(ready)return;
+  if(ready){await refreshMultiplatform();return;}
   ready=true;
   const root=$("mpRoot");if(!root)return;
   root.innerHTML=`
