@@ -2,6 +2,7 @@ const $=id=>document.getElementById(id);
 const zone="Asia/Ho_Chi_Minh";
 const VN_OFFSET=7*3600000;
 let initialized=false,pages=[],series=[],episodes=[],jobs=[],campaigns=[],activePage="",view="overview";
+let analyticsEnabled=false;
 let pageDiagnostics=[];
 let selectedDay="",weekOffset=0;
 const selection=new Map(),drafts=new Map();
@@ -39,11 +40,17 @@ function startTomorrow(){
 function openDialog(id){$(id).showModal();}
 function closeDialog(id){$(id).close();}
 function setView(next){
-  view=next==="campaigns"?"campaigns":"overview";
-  for(const n of ["overview","campaigns"]){
-    $(n==="overview"?"rdOverview":"rdCampaignsView").classList.toggle("hidden",n!==view);
+  view=next==="campaigns"?"campaigns":next==="analytics"&&analyticsEnabled?"analytics":"overview";
+  for(const n of ["overview","campaigns","analytics"]){
+    const id=n==="overview"?"rdOverview":n==="campaigns"?"rdCampaignsView":"rdAnalyticsView";
+    $(id).classList.toggle("hidden",n!==view);
     const b=document.querySelector('#reels [data-rd-view="'+n+'"]');
     if(b)b.classList.toggle("active",n===view);
+  }
+  $("reels").classList.toggle("rd-analytics-active",view==="analytics");
+  if(view==="analytics"){
+    const frame=$("rdAnalyticsFrame");
+    if(!frame.getAttribute("src"))frame.setAttribute("src",frame.dataset.src);
   }
   renderDashboard();
 }
@@ -455,6 +462,10 @@ async function refreshReports(){
 }
 async function refreshAll(){
   const config=await api("/config");
+  analyticsEnabled=!!config.analyticsEnabled;
+  const nav=document.querySelector('#reels [data-rd-view="analytics"]');
+  nav.classList.toggle("hidden",!analyticsEnabled);
+  if(!analyticsEnabled&&view==="analytics")setView("overview");
   $("statusPanel").replaceChildren();
   for(const [key,value] of Object.entries(config))if(typeof value==="boolean")$("statusPanel").append(el("span",key+": "+(value?"✓":"chưa cấu hình"),"rd-summary-chip"));
   await refreshPages();await Promise.all([refreshReports(),refreshDiagnostics(),refreshSeries().catch(e=>show("Không thể tải thư mục Drive: "+e.message,true))]);
@@ -528,6 +539,13 @@ function initReelsStudio(){
   $("rdThisWeek").onclick=()=>selectDay(todayVN());
   $("rdCloseDay").onclick=()=>{selectedDay="";renderDashboard();};
   for(const item of document.querySelectorAll('#reels [data-rd-view]'))item.onclick=()=>setView(item.dataset.rdView);
+  window.addEventListener("message",event=>{
+    const frame=$("rdAnalyticsFrame");
+    if(event.origin!==location.origin||event.source!==frame.contentWindow)return;
+    if(event.data?.type!=="anpi-reels-analytics-height")return;
+    const h=Number(event.data.height);
+    if(Number.isFinite(h)&&h>=300&&h<=20000)frame.style.height=Math.ceil(h)+"px";
+  });
   for(const item of document.querySelectorAll('#reels [data-rd-close]'))item.onclick=()=>closeDialog(item.dataset.rdClose);
   $("google").onclick=()=>handle(()=>connect("google"));
   $("meta").onclick=()=>handle(()=>connect("meta"));
