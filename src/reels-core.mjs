@@ -4,7 +4,7 @@ import {createCipheriv,createDecipheriv,createHmac,randomBytes,timingSafeEqual} 
 // Only these exact callback paths may bypass the generic cross-site filter;
 // the callback handler must still validate the signed, short-lived OAuth state.
 export function isOAuthCallbackRequest(method,pathname){
-  return method==="GET" && /^\/reels\/oauth\/(?:google|meta)\/callback$/.test(pathname);
+  return method==="GET" && (/^\\/reels\\/oauth\\/(?:google|meta)\\/callback$/.test(pathname) || /^\\/reels\\/multi\\/oauth\\/(?:youtube|tiktok)\\/callback$/.test(pathname));
 }
 
 export const GRAPH_VERSION = "v26.0";
