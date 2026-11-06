@@ -1,5 +1,7 @@
 import {isOAuthCallbackRequest} from "../src/reels-core.mjs";
 import {reelsRoute} from "../src/reels-api.mjs";
+import {dispatchReelsWorker} from "../src/reels-dispatch.mjs";
+import {db} from "../src/reels-core.mjs";
 import {discoverLibrary, FEEDS} from "../src/library.mjs";
 import {discover, playlist, resolve} from "../src/provider.mjs";
 import {createHmac,timingSafeEqual} from "node:crypto";
@@ -57,6 +59,19 @@ export default async function handler(req,res){
     if(PASS.length<12||SECRET.length<32)return send(res,503,{error:"Set STUDIO_PASSWORD (12+) and SESSION_SECRET (32+) in Vercel"});
     if(req.headers.origin&&new URL(req.headers.origin).host!==req.headers.host)return send(res,403,{error:"Origin rejected"});
     if(req.headers["sec-fetch-site"]==="cross-site"&&!isOAuthCallbackRequest(req.method,p))return send(res,403,{error:"Cross-site rejected"});
+    // Server-to-server wakeup only. Cron service never receives GitHub or
+    // Supabase credentials. Check a high-entropy shared secret at this boundary.
+    if(p==="/reels/cron"&&req.method==="POST"){
+      const secret=process.env.REELS_CRON_SECRET||"";
+      const supplied=String(req.headers["x-reels-cron-key"]||"");
+      if(secret.length<32||!equal(supplied,secret))return send(res,401,{error:"Cron authentication required"});
+      const overdue=await db("reel_jobs?status=eq.queued&scheduled_at=lte."+encodeURIComponent(new Date().toISOString())+"&select=id&limit=1");
+      const processing=overdue?.length?[]:await db("reel_jobs?status=eq.processing&select=id&limit=1");
+      if(!overdue?.length&&!processing?.length)return send(res,200,{ok:true,due:0,dispatched:false});
+      const wakeup=await dispatchReelsWorker();
+      if(!wakeup.dispatched)return send(res,503,{error:"Chưa cấu hình GITHUB_REELS_WORKFLOW_TOKEN trên Vercel"});
+      return send(res,202,{ok:true,dispatched:true,reason:overdue?.length?"due_jobs":"reconcile"});
+    }
     if(p==="/login"&&req.method==="POST"){
       const data=await input(req);
       const hashed=s=>createHmac("sha256",SECRET).update(String(s)).digest("hex");

@@ -1,4 +1,6 @@
 import {balancedCounts,validateBalancedSchedule,balancedSchedule} from "./reels-planning.mjs";
+import {safeToRetryFailedUpload} from "./reels-upload.mjs";
+import {dispatchReelsWorker} from "./reels-dispatch.mjs";
 import {prepareMuse,parsePlanItems,validateMuseReply,validateGoldenMuseReply,validateApprovedPlan,requestMusePlan,requestGeminiPlan,musePrompt,planSpecification} from "./muse-planner.mjs";
 import {oauthState,verifyOauthState,encryptToken,db,audit,clientConfig,fetchJSON,getGoogleAccessToken,driveSeries,driveEpisodes,scheduleEpisodes,validId,requiredConfig} from "./reels-core.mjs";
 const graph="https://graph.facebook.com/v26.0";
@@ -285,6 +287,27 @@ export async function reelsRoute(req,res,path){
       if(!updated?.length)return fail(res,409,"Bài đăng đã bắt đầu xử lý");
       await audit("job_updated",{jobId:id,episode:old.episode,pageId:old.page_id},id);
       return json(res,200,{ok:true,job:updated[0]});
+    }
+    if(path==="/jobs/retry"&&method==="POST"){
+      const request=await body(req);
+      const id=String(request.id||"");
+      if(!/^[0-9a-f-]{36}$/i.test(id))return fail(res,400,"ID bài đăng không hợp lệ");
+      const original=(await db("reel_jobs?id=eq."+id+"&select=id,status,error,episode,page_id,meta_video_id&limit=1"))?.[0];
+      if(!original)return fail(res,404,"Không tìm thấy bài đăng");
+      // This specific 400 error is known to happen during the binary upload,
+      // before the finish/publish phase is ever called. Do not blindly retry
+      // timeout/unknown publish outcomes: they can create duplicate Reels.
+      if(!safeToRetryFailedUpload(original))
+        return fail(res,409,"Không thể thử lại tự động vì chưa xác nhận an toàn. Hãy đối soát Meta trước.");
+      const rows=await db("reel_jobs?id=eq."+id+"&status=eq.failed",{method:"PATCH",prefer:"return=representation",
+        body:{status:"queued",meta_video_id:null,meta_status:null,error:null,updated_at:new Date().toISOString()}});
+      if(!rows?.length)return fail(res,409,"Bài đăng đã được xử lý bởi tác vụ khác");
+      await audit("reel_retry_queued",{jobId:id,episode:original.episode,previousError:"Meta upload HTTP 400"},id);
+      let dispatched=false;
+      try{dispatched=(await dispatchReelsWorker()).dispatched;}
+      catch(e){console.warn("Reels worker dispatch unavailable",String(e.message).slice(0,120));}
+      return json(res,200,{ok:true,queued:true,dispatched,
+        note:dispatched?"Đã yêu cầu GitHub Actions xử lý bài":"Đã đưa về hàng đợi. Hãy chạy workflow GitHub thủ công hoặc cấu hình bộ kích hoạt theo lịch."});
     }
     if(path==="/jobs/cancel"&&method==="POST"){
       const b=await body(req);

@@ -1,4 +1,5 @@
 import {db,audit,decryptToken,getGoogleAccessToken,fetchJSON,requiredConfig} from "../src/reels-core.mjs";
+import {reelUploadHeaders} from "../src/reels-upload.mjs";
 const graph="https://graph.facebook.com/v26.0";
 async function patch(id,changes){
   return db("reel_jobs?id=eq."+id,{method:"PATCH",prefer:"return=minimal",body:{...changes,updated_at:new Date().toISOString()}});
@@ -20,9 +21,9 @@ async function uploadVideo(job,token){
   await patch(job.id,{meta_video_id:id});
   const uploader=new URL(session.upload_url);
   if(uploader.protocol!=="https:"||uploader.hostname!=="rupload.facebook.com")throw Error("Meta trả upload URL không được phép");
-  const fromDrive=await fetch("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(job.file_id)+"?alt=media",{headers:{Authorization:"Bearer "+gd},signal:AbortSignal.timeout(360000)});
+  const fromDrive=await fetch("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(job.file_id)+"?alt=media",{headers:{Authorization:"Bearer "+gd,"Accept-Encoding":"identity"},signal:AbortSignal.timeout(360000)});
   if(!fromDrive.ok||!fromDrive.body)throw Error("Không thể đọc video từ Google Drive (HTTP "+fromDrive.status+")");
-  const result=await fetch(uploader,{method:"POST",duplex:"half",headers:{"Authorization":"OAuth "+token,"offset":"0","file_size":String(size),"Content-Type":"application/octet-stream"},body:fromDrive.body,signal:AbortSignal.timeout(360000)});
+  const result=await fetch(uploader,{method:"POST",duplex:"half",headers:reelUploadHeaders(token,size),body:fromDrive.body,signal:AbortSignal.timeout(360000)});
   const upload=await result.json().catch(()=>({}));
   if(!result.ok||!upload.success)throw Error("Meta upload HTTP "+result.status+": "+JSON.stringify(upload).slice(0,150));
   const finish=await fetchJSON(graph+"/me/video_reels?"+new URLSearchParams({access_token:token,video_id:id,upload_phase:"finish",video_state:"PUBLISHED",description:String(job.caption||"").slice(0,2200),title:job.filename}),{method:"POST"});
@@ -48,15 +49,28 @@ async function reconcile(){
 export async function main(){
   requiredConfig(["SUPABASE_URL","SUPABASE_SERVICE_ROLE_KEY","REELS_ENCRYPTION_KEY","GOOGLE_CLIENT_ID","GOOGLE_CLIENT_SECRET"]);
   await reconcile();
-  const jobs=await db("rpc/claim_reel_jobs",{method:"POST",body:{p_limit:1}});
-  for(const job of jobs||[]){
-    try{const token=await pageToken(job.page_id);await uploadVideo(job,token);}
-    catch(err){
-      console.error("reel job failed",job.id,err.message);
-      await patch(job.id,{status:"failed",error:String(err.message).slice(0,400)});
-      await audit("reel_failed",{jobId:job.id,error:String(err.message).slice(0,300)},job.id);
+  // Each GitHub Actions cron execution can be delayed. Drain a small batch of
+  // overdue Reels while leaving time for cleanup under the 25-minute timeout.
+  const started=Date.now();
+  const batchLimit=Math.max(1,Math.min(3,Number(process.env.REELS_BATCH_LIMIT)||3));
+  let processed=0,failed=0;
+  for(let attempt=0;attempt<batchLimit&&Date.now()-started<17*60000;attempt++){
+    const jobs=await db("rpc/claim_reel_jobs",{method:"POST",body:{p_limit:1}});
+    const job=jobs?.[0];
+    if(!job)break;
+    processed++;
+    try{
+      const token=await pageToken(job.page_id);
+      await uploadVideo(job,token);
+      console.log("reel delivered to Meta",job.id);
+    }catch(err){
+      failed++;
+      // Never emit access tokens, raw API responses or Drive links to Actions logs.
+      console.error("reel job failed",job.id,String(err.message||err).slice(0,220));
+      await patch(job.id,{status:"failed",error:String(err.message||err).slice(0,400)});
+      await audit("reel_failed",{jobId:job.id,error:String(err.message||err).slice(0,300)},job.id);
     }
   }
-  console.log("reels worker jobs",jobs?.length||0);
+  console.log("reels worker jobs",processed,"failed",failed);
 }
 if(import.meta.url===new URL("file://"+process.argv[1]).href)main().catch(e=>{console.error(e);process.exitCode=1;});
