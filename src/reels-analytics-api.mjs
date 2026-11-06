@@ -64,14 +64,21 @@ function insightsTrend(b,pageId,period,metric){
 }
 async function dispatchAnalytics(){
   const token=process.env.GITHUB_REELS_WORKFLOW_TOKEN||"";
-  if(!token)return false;
+  if(!token)return {dispatched:false,reason:"Vercel thiếu GITHUB_REELS_WORKFLOW_TOKEN"};
   const repo=process.env.GITHUB_REELS_REPOSITORY||"tianhainrk/PineDrama-Web-Studio";
-  if(!/^[\w.-]+\/[\w.-]+$/.test(repo))return false;
+  if(!/^[\w.-]+\/[\w.-]+$/.test(repo))
+    return {dispatched:false,reason:"GITHUB_REELS_REPOSITORY không hợp lệ"};
   const res=await fetch("https://api.github.com/repos/"+repo+"/actions/workflows/reels-analytics.yml/dispatches",{
     method:"POST",headers:{"Authorization":"Bearer "+token,"Accept":"application/vnd.github+json",
       "Content-Type":"application/json","User-Agent":"AnpiDrama-Analytics"},
     body:JSON.stringify({ref:"main"}),signal:AbortSignal.timeout(10000),redirect:"error"});
-  return res.status===204;
+  if(res.status===204)return {dispatched:true,reason:null};
+  // Do not print Graph/GitHub responses, credentials or request Authorization.
+  const reason=[401,403,404].includes(res.status)?
+    "GitHub HTTP "+res.status+": kiểm tra token có quyền Actions Read/Write trên đúng repository "+repo:
+    "GitHub không nhận lệnh chạy Analytics (HTTP "+res.status+")";
+  console.warn("Analytics dispatch failure: HTTP",res.status);
+  return {dispatched:false,reason};
 }
 export async function reelsAnalyticsRoute(req,res,path,url){
   try{
@@ -94,10 +101,14 @@ export async function reelsAnalyticsRoute(req,res,path,url){
       const rows=await db("reel_analytics_sync_requests",{method:"POST",prefer:"return=representation",body:{
         page_id:pageId==="all"?null:pageId,status:"queued"
       }});
-      let dispatched=false;
-      try{dispatched=await dispatchAnalytics();}catch(e){console.warn("Analytics dispatch failed",String(e.message).slice(0,100));}
-      return json(res,202,{queued:true,requestId:rows?.[0]?.id||null,dispatched,
-        message:dispatched?"Đã yêu cầu worker Analytics chạy":"Đã xếp hàng đợi. Chạy GitHub Actions > Reels Analytics Sync nếu cần đồng bộ ngay."});
+      let dispatch={dispatched:false,reason:"Không thể kết nối GitHub từ Vercel"};
+      try{dispatch=await dispatchAnalytics();}catch(e){
+        console.warn("Analytics dispatch unreachable",String(e?.name||"Error").slice(0,30));
+      }
+      return json(res,202,{queued:true,requestId:rows?.[0]?.id||null,dispatched:dispatch.dispatched,
+        message:dispatch.dispatched?"Đã yêu cầu GitHub chạy worker Analytics":
+          "Đã xếp hàng đợi nhưng CHƯA kích hoạt worker: "+dispatch.reason+
+          ". Có thể chạy thủ công tại GitHub Actions > Sync Facebook Reels Analytics."});
     }
     if(method!=="GET")return fail(res,405,"Phương thức không được hỗ trợ");
     const {pageId,period}=parseFilter(url);
