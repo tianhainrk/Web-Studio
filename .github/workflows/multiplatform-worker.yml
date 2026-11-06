@@ -1,0 +1,34 @@
+name: Process YouTube Shorts and TikTok Queue
+on:
+  schedule:
+    - cron: "3-59/5 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: anpi-multiplatform-publisher
+  cancel-in-progress: false
+jobs:
+  upload:
+    # Both manual and scheduled publishing require explicit GitHub opt-in.
+    if: ${{ vars.MULTIPLATFORM_PUBLISH_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Publish due jobs and reconcile remote video status
+        env:
+          MULTIPLATFORM_PUBLISH_ENABLED: "true"
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          REELS_ENCRYPTION_KEY: ${{ secrets.REELS_ENCRYPTION_KEY }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          TIKTOK_CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
+          TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
+          TIKTOK_VERIFIED_MEDIA_HOST: ${{ vars.TIKTOK_VERIFIED_MEDIA_HOST }}
+          TIKTOK_PUBLIC_POSTING_APPROVED: ${{ vars.TIKTOK_PUBLIC_POSTING_APPROVED }}
+        run: node src/multiplatform-worker.mjs
