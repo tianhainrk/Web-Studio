@@ -52,9 +52,9 @@ export async function main(){
   // Each GitHub Actions cron execution can be delayed. Drain a small batch of
   // overdue Reels while leaving time for cleanup under the 25-minute timeout.
   const started=Date.now();
-  const batchLimit=Math.max(1,Math.min(3,Number(process.env.REELS_BATCH_LIMIT)||3));
+  const batchLimit=Math.max(1,Math.min(8,Number(process.env.REELS_BATCH_LIMIT)||8));
   let processed=0,failed=0;
-  for(let attempt=0;attempt<batchLimit&&Date.now()-started<17*60000;attempt++){
+  for(let attempt=0;attempt<batchLimit&&Date.now()-started<20*60000;attempt++){
     const jobs=await db("rpc/claim_reel_jobs",{method:"POST",body:{p_limit:1}});
     const job=jobs?.[0];
     if(!job)break;
@@ -72,6 +72,7 @@ export async function main(){
       await audit("reel_failed",{jobId:job.id,error:String(err.message||err).slice(0,300)},job.id);
     }
   }
-  console.log("reels worker jobs",processed,"failed",failed);
+  console.log("reels worker jobs",processed,"failed",failed,"elapsed_ms",Date.now()-started);
+  if(processed===batchLimit)console.log("reels worker reached per-run batch limit; next invocation will continue queue");
 }
 if(import.meta.url===new URL("file://"+process.argv[1]).href)main().catch(e=>{console.error(e);process.exitCode=1;});
