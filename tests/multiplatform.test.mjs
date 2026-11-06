@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {cleanPostRequest,verifyMediaUrl,youtubeTitle,tiktokStatus,isTikTokApprovedPrivate} from "../src/multiplatform-core.mjs";
+import {cleanPostRequest,verifyMediaUrl,youtubeTitle,tiktokStatus,isTikTokApprovedPrivate,tiktokChunkPlan} from "../src/multiplatform-core.mjs";
 import {isOAuthCallbackRequest,oauthState,verifyOauthState} from "../src/reels-core.mjs";
 const t=Date.parse("2026-11-07T00:00:00Z");
 const request={provider:"youtube",accountId:"873cedde-f813-4847-850f-dc1d76c1b57b",
@@ -46,4 +46,24 @@ test("Only exact OAuth callbacks bypass cross-site origin check",()=>{
   const st=oauthState("youtube","https://anpinime-dramavideo.vercel.app",secret);
   assert.ok(verifyOauthState(st,"youtube","https://anpinime-dramavideo.vercel.app",secret));
   assert.ok(!verifyOauthState(st,"tiktok","https://anpinime-dramavideo.vercel.app",secret));
+});
+
+test("TikTok direct file upload from private Drive needs no public media URL",()=>{
+  const raw={...request,provider:"tiktok",privacy:"SELF_ONLY"};
+  const x=cleanPostRequest(raw,{now:t,verifiedHost:""});
+  assert.equal(x.source_url,null);
+});
+test("TikTok chunk plan matches source restrictions, coverage and final remainder",()=>{
+  for(const size of [1,4_194_304,10_000_000,64_000_000,65_000_000,90_123_456,512*1024*1024]){
+    const {chunkSize,chunkCount,chunks}=tiktokChunkPlan(size);
+    assert.equal(chunkCount,Math.max(1,Math.floor(size/chunkSize)));
+    assert.equal(chunks.length,chunkCount);
+    assert.equal(chunks[0].start,0);
+    assert.equal(chunks.at(-1).end,size-1);
+    assert.equal(chunks.reduce((n,ch)=>n+ch.length,0),size);
+    for(let i=1;i<chunks.length;i++)assert.equal(chunks[i].start,chunks[i-1].end+1);
+    if(size>64_000_000)assert.ok(chunks.slice(0,-1).every(ch=>ch.length>=5_000_000&&ch.length<=64_000_000));
+  }
+  assert.throws(()=>tiktokChunkPlan(0),/kích thước/);
+  assert.throws(()=>tiktokChunkPlan(513*1024*1024),/kích thước/);
 });
