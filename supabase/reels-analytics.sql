@@ -74,6 +74,12 @@ alter table public.reel_analytics_sync_requests enable row level security;
 revoke all on public.reel_analytics_posts,public.reel_analytics_snapshots,
   public.reel_analytics_page_daily,public.reel_analytics_sync_runs,
   public.reel_analytics_sync_requests from anon,authenticated;
+-- Explicit service-role rights in environments with custom default privileges.
+grant select,insert,update,delete on public.reel_analytics_posts,public.reel_analytics_snapshots,
+  public.reel_analytics_page_daily,public.reel_analytics_sync_runs,
+  public.reel_analytics_sync_requests to service_role;
+grant usage,select on all sequences in schema public to service_role;
+
 -- Prevent two workers from picking the same request.
 create or replace function public.claim_reel_analytics_requests(p_limit integer default 3)
 returns setof public.reel_analytics_sync_requests
