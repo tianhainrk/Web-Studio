@@ -2,6 +2,7 @@ const $=id=>document.getElementById(id);
 const zone="Asia/Ho_Chi_Minh";
 const VN_OFFSET=7*3600000;
 let initialized=false,pages=[],series=[],episodes=[],jobs=[],campaigns=[],activePage="",view="overview";
+let pageDiagnostics=[];
 let selectedDay="",weekOffset=0;
 const selection=new Map(),drafts=new Map();
 let draftFingerprint="",currentBatch=null,generating=false,episodeLoadSequence=0;
@@ -80,6 +81,39 @@ async function connect(provider){
   if(!config[provider])throw Error("Chưa cấu hình OAuth "+provider+" trên Vercel");
   location.href="/api/reels/oauth/"+provider+"/start";
 }
+function renderDiagnostics(){
+  const root=$("rdQueueHealth");if(!root)return;
+  root.replaceChildren();
+  if(!pageDiagnostics.length){
+    root.append(el("div","Chưa có dữ liệu. Nhấn Kiểm tra để tải trạng thái của từng Page.","rd-empty"));return;
+  }
+  for(const health of pageDiagnostics){
+    const card=el("div","","rd-health-card");
+    const header=el("div","","rd-health-top");
+    header.append(el("strong",health.name));
+    const check=button("Kiểm tra quyền Meta",()=>handle(async()=>{
+      const result=await api("/pages/check-meta",{pageId:health.pageId});
+      show(result.ok?"Meta xác nhận có thể truy cập "+health.name+".":"Page "+health.name+": "+result.error+(result.detail?" ("+result.detail+")":""),!result.ok);
+    }));
+    header.append(check);card.append(header);
+    card.append(el("p",health.reason,"rd-health-note"));
+    const stats=el("div","","rd-health-stats");
+    for(const [key,value] of [["Chiến dịch",health.campaigns],["Đến hạn",health.due],["Chờ giờ",health.totals.queued-health.due-health.blocked],["Đang xử lý",health.totals.uploading+health.totals.processing],["Đã đăng",health.totals.published],["Lỗi",health.totals.failed]]){
+      const stat=el("span",key+": "+Math.max(0,value));stats.append(stat);
+    }
+    card.append(stats);
+    if(health.lastError)card.append(el("p","Lỗi gần nhất: "+health.lastError,"rd-health-error"));
+    if(health.staleUploading)card.append(el("p",health.staleUploading+" bài kẹt ở trạng thái upload quá 35 phút; không tự đăng lại nếu chưa biết Meta đã nhận video hay chưa.","rd-health-error"));
+    if(health.partial)card.append(el("p","Dữ liệu giới hạn 3.000 bài; thống kê có thể chưa đầy đủ.","rd-health-note"));
+    root.append(card);
+  }
+}
+async function refreshDiagnostics(){
+  const response=await api("/pages/diagnostics");
+  pageDiagnostics=response.pages||[];
+  renderDiagnostics();
+  renderDashboard();
+}
 function pagesUI(){
   const original=activePage;
   const rd=$("rdPage"),sel=$("pageSelect"),root=$("pages");
@@ -94,7 +128,7 @@ function pagesUI(){
     const actions=el("div","","rd-actions");
     actions.append(button(p.active?"Tạm tắt":"Kích hoạt",()=>handle(async()=>{
       await api("/pages/active",{pageId:p.page_id,active:!p.active});
-      await refreshPages();await refreshReports();
+      await refreshPages();await refreshReports();await refreshDiagnostics();
     })));
     actions.append(button("Ngắt kết nối",()=>handle(async()=>{
       if(!confirm("Ngắt kết nối Page này? Các lịch chưa hoàn thành phải được hủy trước."))return;
@@ -352,7 +386,11 @@ function renderDashboard(){
   $("rdPending").textContent=String(all.filter(j=>j.status==="queued").length);
   $("rdFailed").textContent=String(all.filter(j=>j.status==="failed").length);
   const page=pages.find(p=>p.page_id===activePage);
-  $("rdPageState").textContent=page?(page.active?"Đã kết nối · Có thể đăng":"Page đang tạm tắt"):"Chọn Fanpage để xem lịch";
+  const health=pageDiagnostics.find(x=>x.pageId===activePage);
+  $("rdPageState").textContent=!page?"Chọn Fanpage để xem lịch":
+    !page.active?"Page đang tạm tắt":
+    health?.due?health.due+" bài quá hạn cần xử lý":
+    health?.totals.failed?health.totals.failed+" bài lỗi cần kiểm tra":"Đã kết nối";
   const base=Date.parse(day+"T00:00:00+07:00")+weekOffset*7*86400000;
   const week=$("rdWeek");week.replaceChildren();
   const first=vnDate(new Date(base).toISOString()),last=vnDate(new Date(base+6*86400000).toISOString());
@@ -419,7 +457,7 @@ async function refreshAll(){
   const config=await api("/config");
   $("statusPanel").replaceChildren();
   for(const [key,value] of Object.entries(config))if(typeof value==="boolean")$("statusPanel").append(el("span",key+": "+(value?"✓":"chưa cấu hình"),"rd-summary-chip"));
-  await refreshPages();await Promise.all([refreshReports(),refreshSeries().catch(e=>show("Không thể tải thư mục Drive: "+e.message,true))]);
+  await refreshPages();await Promise.all([refreshReports(),refreshDiagnostics(),refreshSeries().catch(e=>show("Không thể tải thư mục Drive: "+e.message,true))]);
 }
 function editJob(id){
   const job=jobs.find(j=>j.id===id);if(!job)return;
@@ -482,6 +520,8 @@ function initReelsStudio(){
   $("rdPage").onchange=()=>handle(async()=>{activePage=$("rdPage").value;$("pageSelect").value=activePage;selectedDay="";weekOffset=0;await refreshReports();});
   $("reelsRefresh").onclick=()=>handle(refreshAll);
   $("rdConnect").onclick=()=>openDialog("rdConnectDialog");
+  $("rdHealth").onclick=()=>{openDialog("rdConnectDialog");handle(refreshDiagnostics);};
+  $("rdRefreshHealth").onclick=()=>handle(refreshDiagnostics);
   $("rdNew").onclick=()=>{openDialog("rdComposer");wizard(0);if(!series.length)handle(refreshSeries);};
   $("rdPrevWeek").onclick=()=>shiftWeek(-1);
   $("rdNextWeek").onclick=()=>shiftWeek(1);

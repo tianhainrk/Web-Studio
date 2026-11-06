@@ -1,4 +1,5 @@
 import {balancedCounts,validateBalancedSchedule,balancedSchedule} from "./reels-planning.mjs";
+import {pageQueueDiagnostics} from "./reels-diagnostics.mjs";
 import {safeToRetryFailedUpload} from "./reels-upload.mjs";
 import {dispatchReelsWorker} from "./reels-dispatch.mjs";
 import {prepareMuse,parsePlanItems,validateMuseReply,validateGoldenMuseReply,validateApprovedPlan,requestMusePlan,requestGeminiPlan,musePrompt,planSpecification} from "./muse-planner.mjs";
@@ -95,6 +96,31 @@ export async function reelsRoute(req,res,path){
       if(active.length)return fail(res,409,"Fanpage đang có lịch chưa hoàn tất; hãy hủy lịch trước");
       await db("reel_pages?page_id=eq."+b.pageId,{method:"DELETE"});
       await audit("page_removed",{pageId:b.pageId});return json(res,200,{ok:true});
+    }
+    if(path==="/pages/diagnostics"&&method==="GET"){
+      // Safe authenticated read: never fetch token_enc or return OAuth data.
+      const pageRows=await db("reel_pages?select=page_id,name,active&order=name.asc&limit=100");
+      const campaignRows=await db("reel_campaigns?select=id,page_id,status&limit=500");
+      const pageJobs=[];let partial=campaignRows.length>=500||pageRows.length>=100;
+      for(let offset=0;offset<3000;offset+=1000){
+        const rows=await db("reel_jobs?select=id,page_id,campaign_id,status,scheduled_at,updated_at,error&order=scheduled_at.asc&limit=1000&offset="+offset);
+        pageJobs.push(...rows);
+        if(rows.length<1000)break;
+        if(offset===2000)partial=true;
+      }
+      return json(res,200,{pages:pageQueueDiagnostics(pageRows,campaignRows,pageJobs,{partial}),checkedAt:new Date().toISOString(),partial});
+    }
+    if(path==="/pages/check-meta"&&method==="POST"){
+      const request=await body(req),pageId=String(request.pageId||"");
+      if(!/^\d+$/.test(pageId))return fail(res,400,"Fanpage ID không hợp lệ");
+      const token=await metaPageToken(pageId);
+      try{
+        const response=await fetchJSON(graph+"/"+pageId+"?fields=id,name",{headers:{"Authorization":"Bearer "+token},timeout:12000});
+        if(String(response.id)!==pageId)throw Error("Meta trả sai Fanpage ID");
+        return json(res,200,{ok:true,name:String(response.name||"").slice(0,150)});
+      }catch(err){
+        return json(res,200,{ok:false,error:"Meta không xác minh được quyền của Fanpage này. Hãy kết nối lại Meta và kiểm tra quyền pages_manage_posts.",detail:String(err.message||"").slice(0,170)});
+      }
     }
     if(path==="/drive/series"&&method==="GET"){
       const token=await getGoogleAccessToken();

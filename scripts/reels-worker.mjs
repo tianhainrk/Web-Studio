@@ -59,6 +59,7 @@ export async function main(){
     const job=jobs?.[0];
     if(!job)break;
     processed++;
+    console.log("reel claimed",job.id,"page",job.page_id,"scheduled",job.scheduled_at);
     try{
       const token=await pageToken(job.page_id);
       await uploadVideo(job,token);
