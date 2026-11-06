@@ -79,7 +79,7 @@ test("Original Analytics demo remains design source and no mocked numbers reach 
   assert.match(index,/data-rd-view="analytics"/);
   assert.match(index,/id="rdAnalyticsFrame"/);
   for(const id of ["metrics","trendSvg","heatGrid","compareContent","pageTable","reelRows","mobileRows","topReels","modalStats"])assert.match(html,new RegExp('id="'+id+'"'));
-  assert.match(css,/\\.heat-grid/);
+  assert.match(css,/\.heat-grid/);
   assert.match(css,/@media/);
   assert.match(js,/\/api\/reels\/analytics/);
   assert.doesNotMatch(js,/base:24000|Math\.sin|dữ liệu mẫu|data-page="a"/);
