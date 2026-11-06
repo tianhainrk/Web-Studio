@@ -17,6 +17,8 @@ jobs:
       - name: Syntax check
         run: |
           node --check src/reels-core.mjs
+          node --check src/reels-upload.mjs
+          node --check src/reels-dispatch.mjs
           node --check src/muse-planner.mjs
           node --check src/reels-planning.mjs
           node --check src/gemini-video.mjs
