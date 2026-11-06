@@ -37,7 +37,7 @@ export function cleanPostRequest(raw,{now=Date.now(),verifiedHost="",publicTikTo
     throw Error("Chọn quyền riêng tư được TikTok cho phép");
   if(provider==="tiktok"&&!publicTikTokApproved&&privacy!=="SELF_ONLY")
     throw Error("Chưa xác minh TikTok App audit, chỉ được xếp lịch video riêng tư");
-  const source_url=provider==="tiktok"?verifyMediaUrl(raw.sourceUrl,verifiedHost):null;
+  const source_url=provider==="tiktok"&&raw.sourceUrl?verifyMediaUrl(raw.sourceUrl,verifiedHost):null;
   return {provider,account_id:raw.accountId,folder_id:raw.folderId,file_id:raw.fileId,
     filename:raw.filename,caption,title,scheduled_at:new Date(time).toISOString(),
     privacy,source_url,consent_recorded_at:new Date(now).toISOString(),
@@ -50,4 +50,19 @@ export function tiktokStatus(status){
 }
 export function isTikTokApprovedPrivate(privacy,creator){
   return Array.isArray(creator?.privacy_level_options)&&creator.privacy_level_options.includes(privacy);
+}
+
+/** TikTok requires each chunk 5MB-64MB except a final combined remainder.
+ * total_chunk_count is floor(video_size / chunk_size) per the official API. */
+export function tiktokChunkPlan(bytes){
+  if(!Number.isSafeInteger(bytes)||bytes<1||bytes>512*1024*1024)throw Error("MP4 phải có kích thước 1 byte–512 MiB");
+  const unit=bytes<=64_000_000?bytes:10_000_000;
+  const count=Math.max(1,Math.floor(bytes/unit));
+  const chunks=[];
+  for(let i=0;i<count;i++){
+    const start=i*unit;
+    const end=i===count-1?bytes-1:Math.min(bytes-1,(i+1)*unit-1);
+    chunks.push({start,end,length:end-start+1});
+  }
+  return {chunkSize:unit,chunkCount:count,chunks};
 }
