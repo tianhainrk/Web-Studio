@@ -3,6 +3,12 @@ on:
   schedule:
     - cron: "17 */3 * * *"
   workflow_dispatch:
+  # One initial sync when this workflow is deployed to main; also allows
+  # isolated GitHub code changes to be integration-tested without a PAT.
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/reels-analytics.yml"
 permissions:
   contents: read
 concurrency:
@@ -10,7 +16,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   sync:
-    if: vars.REELS_ANALYTICS_ENABLED == 'true'
+    # Manual and push syncs are explicit; scheduled syncs are opt-in via repo variable.
+    if: ${{ github.event_name != 'schedule' || vars.REELS_ANALYTICS_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
