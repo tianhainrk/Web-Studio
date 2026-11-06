@@ -1,3 +1,4 @@
+import {multiRoute} from "./multiplatform-api.mjs";
 import {balancedCounts,validateBalancedSchedule,balancedSchedule} from "./reels-planning.mjs";
 import {reelsAnalyticsRoute} from "./reels-analytics-api.mjs";
 import {bestTimes,recommendations} from "./reels-analytics-core.mjs";
@@ -33,6 +34,7 @@ export async function reelsRoute(req,res,path){
     const url=new URL(req.url,origin(req));
     const method=req.method;
     if(path==="/config"&&method==="GET")return json(res,200,clientConfig());
+    if(path.startsWith("/multi/"))return multiRoute(req,res,path.slice("/multi".length));
     if(path.startsWith("/analytics/")){
       if(process.env.REELS_ANALYTICS_ENABLED!=="true")
         return fail(res,503,"Analytics chưa bật. Cần chạy supabase/reels-analytics.sql, cấp quyền read_insights và đặt REELS_ANALYTICS_ENABLED=true.");
