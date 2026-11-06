@@ -1,3 +1,4 @@
+import {initMultiplatform,refreshMultiplatform} from "./multiplatform.js";
 import {initReelsStudio,refreshReelsStudio} from "./reels.js";
 import { openMovieDetail } from "./detail.js";
 import {
@@ -72,12 +73,13 @@ function updateDriveConnectionUI() {
 function switchTab(tabName) {
   lastActiveTab = tabName;
   document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("active", x.dataset.tab === tabName));
-  ["catalog", "dramadownloader", "manager", "drive", "reels"].forEach(x => {
+  ["catalog", "dramadownloader", "manager", "drive", "reels", "multiplatform"].forEach(x => {
     const node = $(x);
     if (node) node.classList.toggle("hidden", x !== tabName);
   });
   $("detail").classList.add("hidden");
   if (tabName === "reels") refreshReelsStudio().catch(e => status("Reels: " + e.message, true));
+  if (tabName === "multiplatform") initMultiplatform().catch(e => status("Đa nền tảng: " + e.message, true));
   if (tabName === "manager" && driveConnected() && !managerBusy) {
     loadDriveManager();
   }
@@ -178,6 +180,8 @@ async function auth() {
     if (location.hash === "#reels") {
       initReelsStudio();
       switchTab("reels");
+    } else if (location.hash === "#multiplatform") {
+      switchTab("multiplatform");
     } else if (location.hash === "#dramadownloader") {
       switchTab("dramadownloader");
     } else {
