@@ -125,14 +125,14 @@ export async function reelsAnalyticsRoute(req,res,path,url){
       const slots=bestTimes(b.reels,b.shots,pageId);
       const recommendation=recommendations(slots);
       return json(res,200,{summary:overview(b,pageId,period),
-        trend:insightsTrend(b,pageId,period,"views"),pages:pageComparison(b.pages,b.reels,b.dates),
+        trend:insightsTrend(b,pageId,period,"views"),pages:pageComparison(b.scope,b.reels,b.dates),
         daily:b.daily,bestTimes:slots,recommendations:recommendation,
         // Only preview initial rows; full results use paginated /reels.
         reels:b.periodReels.slice(0,60).map(sanitizeReel),totalReels:b.periodReels.length,
         connectedPages:b.pages.map(normalizePage),partial:b.partial});
     }
     if(path==="/summary")return json(res,200,overview(b,pageId,period));
-    if(path==="/pages")return json(res,200,{pages:pageComparison(b.pages,b.reels,b.dates),period,partial:b.partial});
+    if(path==="/pages")return json(res,200,{pages:pageComparison(b.scope,b.reels,b.dates),period,partial:b.partial});
     if(path==="/trend"){
       const metric=url.searchParams.get("metric")||"views";
       if(!["views","likes","comments","shares"].includes(metric))return fail(res,400,"Metric không hợp lệ");
