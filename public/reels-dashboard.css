@@ -216,3 +216,10 @@ body:has(#reels:not(.hidden)) main{max-width:1440px}
 #reels .rd-health-stats span{font-size:11px;color:#d9dbef;border:1px solid #374056;padding:5px 8px;border-radius:7px;background:#222943}
 #reels .rd-health-error{font-size:11px;color:#ffacbb;overflow-wrap:anywhere;margin:10px 0 0}
 @media(max-width:720px){#reels .rd-health-top{align-items:flex-start}#reels .rd-health-top button{width:100%}#reels .rd-health-stats span{font-size:10px}}
+
+/* Analytics adopts the exact approved HTML layout inside its same-origin iframe. */
+#reels.rd-analytics-active .rd-head,#reels.rd-analytics-active .rd-pagebar,#reels.rd-analytics-active .rd-metrics,#reels.rd-analytics-active #notice{display:none!important}
+#reels.rd-analytics-active .rd-nav{margin-top:4px;margin-bottom:0}
+#reels #rdAnalyticsView{padding:0;min-height:900px}
+#reels #rdAnalyticsFrame{width:100%;display:block;border:0;max-width:100%}
+@media(max-width:720px){#reels.rd-analytics-active .rd-nav{margin:3px 0 0}#reels #rdAnalyticsView{min-height:750px}}
