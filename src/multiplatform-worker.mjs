@@ -1,5 +1,5 @@
 import {db,decryptToken,encryptToken,getGoogleAccessToken,fetchJSON,requiredConfig} from "./reels-core.mjs";
-import {verifyMediaUrl,tiktokStatus,isTikTokApprovedPrivate} from "./multiplatform-core.mjs";
+import {verifyMediaUrl,tiktokStatus,isTikTokApprovedPrivate,tiktokChunkPlan} from "./multiplatform-core.mjs";
 const tik="https://open.tiktokapis.com";
 const now=()=>new Date().toISOString();
 async function patch(id,changes){await db("multi_publish_jobs?id=eq."+id,{method:"PATCH",body:{...changes,updated_at:now()}});}
@@ -78,22 +78,68 @@ async function youtubeUpload(job,access){
   if(!/^[A-Za-z0-9_-]{8,30}$/.test(String(payload.id||"")))throw Error("YouTube chưa trả video ID; cần kiểm tra thủ công");
   return String(payload.id);
 }
+
+function safeTikTokUploadUrl(value){
+  const u=new URL(String(value||""));
+  if(u.protocol!=="https:"||u.username||u.password||
+    !/^(?:open-upload|upload(?:\\.[a-z0-9-]+)?)\\.tiktokapis\\.com$/i.test(u.hostname))
+    throw Error("URL phiên upload TikTok không hợp lệ");
+  return u.toString();
+}
+async function directDriveUpload(job,access,creator){
+  const drive=await driveInfo(job);
+  const plan=tiktokChunkPlan(drive.size);
+  const answer=await tikRequest("/v2/post/publish/video/init/",access,{
+    post_info:{title:job.caption.slice(0,2200),privacy_level:job.privacy,
+      disable_duet:!!creator.duet_disabled,disable_comment:!!creator.comment_disabled,
+      disable_stitch:!!creator.stitch_disabled},
+    source_info:{source:"FILE_UPLOAD",video_size:drive.size,
+      chunk_size:plan.chunkSize,total_chunk_count:plan.chunkCount}
+  });
+  if(!/^v_[a-z_]+/i.test(String(answer.publish_id||""))||!answer.upload_url)
+    throw Error("TikTok chưa trả publish_id/upload_url");
+  const uploadUrl=safeTikTokUploadUrl(answer.upload_url);
+  // Persist remote_id BEFORE transferring any chunks. Retrying an ambiguous
+  // transfer could publish a duplicate video; require manual review instead.
+  await patch(job.id,{remote_id:answer.publish_id,remote_status:{status:"UPLOADING",method:"FILE_UPLOAD"}});
+  for(let i=0;i<plan.chunks.length;i++){
+    const part=plan.chunks[i];
+    const media=await fetch(drive.url,{headers:{Authorization:"Bearer "+drive.token,
+      Range:"bytes="+part.start+"-"+part.end,"Accept-Encoding":"identity"},
+      signal:AbortSignal.timeout(120000),redirect:"error"});
+    const total=part.end-part.start+1;
+    const range=media.headers.get("content-range")||"";
+    if(!(media.status===206&&range===`bytes ${part.start}-${part.end}/${drive.size}`) &&
+      !(media.status===200&&plan.chunks.length===1&&Number(media.headers.get("content-length"))===total))
+      throw Error("Drive không trả đúng đoạn dữ liệu HTTP Range cần tải TikTok");
+    if(!media.body)throw Error("Drive không cung cấp dữ liệu video");
+    const response=await fetch(uploadUrl,{method:"PUT",duplex:"half",
+      headers:{"Content-Type":"video/mp4","Content-Length":String(total),
+        "Content-Range":`bytes ${part.start}-${part.end}/${drive.size}`},
+      body:media.body,signal:AbortSignal.timeout(240000),redirect:"error"});
+    const expected=i===plan.chunks.length-1?201:206;
+    if(response.status!==expected)
+      throw Error("TikTok upload chunk "+(i+1)+"/"+plan.chunks.length+" HTTP "+response.status);
+  }
+  return answer.publish_id;
+}
 async function tiktokPost(job,access){
-  verifyMediaUrl(job.source_url,process.env.TIKTOK_VERIFIED_MEDIA_HOST||"");
   const creator=await tikRequest("/v2/post/publish/creator_info/query/",access,{});
   if(!isTikTokApprovedPrivate(job.privacy,creator))throw Error("TikTok không cho phép quyền riêng tư này");
   if(process.env.TIKTOK_PUBLIC_POSTING_APPROVED!=="true"&&job.privacy!=="SELF_ONLY")
     throw Error("TikTok chưa audit; chỉ được gửi ở chế độ riêng tư");
-  // TikTok's Content Sharing Guidelines require an approved verified media URL
-  // for server-hosted assets (PULL_FROM_URL). Do not use Drive download URLs.
-  const result=await tikRequest("/v2/post/publish/video/init/",access,{
+  if(!job.source_url)return directDriveUpload(job,access,creator);
+  verifyMediaUrl(job.source_url,process.env.TIKTOK_VERIFIED_MEDIA_HOST||"");
+  const answer=await tikRequest("/v2/post/publish/video/init/",access,{
     post_info:{title:job.caption.slice(0,2200),privacy_level:job.privacy,
-      disable_duet:true,disable_comment:!!creator.comment_disabled,disable_stitch:true},
+      disable_duet:!!creator.duet_disabled,disable_comment:!!creator.comment_disabled,
+      disable_stitch:!!creator.stitch_disabled},
     source_info:{source:"PULL_FROM_URL",video_url:job.source_url}
   });
-  if(!result.publish_id||!/^v_[a-z_]+/i.test(result.publish_id))
+  if(!/^v_[a-z_]+/i.test(String(answer.publish_id||"")))
     throw Error("TikTok chưa trả publish_id");
-  return result.publish_id;
+  await patch(job.id,{remote_id:answer.publish_id,remote_status:{status:"PULLING",method:"PULL_FROM_URL"}});
+  return answer.publish_id;
 }
 async function reconcile(){
   const rows=await db("multi_publish_jobs?status=eq.processing&remote_id=not.is.null"+
