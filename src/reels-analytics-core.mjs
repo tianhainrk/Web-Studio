@@ -78,6 +78,38 @@ function median(values){
   const a=[...values].sort((x,y)=>x-y);
   return a.length%2?a[(a.length-1)/2]:(a[a.length/2-1]+a[a.length/2])/2;
 }
+export function reelDeltaTrend(snapshots,pageId,metric,period,now=new Date()){
+  if(!METRICS.includes(metric))throw Error("Metric không được hỗ trợ");
+  const days=periodDays(period,now),valid=new Set(days),groups=new Map();
+  for(const snap of snapshots){
+    if(pageId!=="all"&&snap.page_id!==pageId)continue;
+    const val=numberOrNull(snap[metric]),day=vietnamDay(snap.sampled_at);
+    if(val===null||!day)continue;
+    const key=snap.page_id+":"+snap.meta_video_id,items=groups.get(key)||[];
+    items.push({...snap,day,value:val});groups.set(key,items);
+  }
+  const perDay=new Map();
+  for(const items of groups.values()){
+    const bestByDay=new Map();
+    for(const row of items){
+      const prev=bestByDay.get(row.day);
+      if(!prev||Date.parse(row.sampled_at)>Date.parse(prev.sampled_at))bestByDay.set(row.day,row);
+    }
+    const sorted=[...bestByDay.values()].sort((a,b)=>a.day.localeCompare(b.day));
+    for(let i=1;i<sorted.length;i++){
+      const row=sorted[i],prev=sorted[i-1];
+      // Never invent deltas across missing calendar days.
+      if(!valid.has(row.day)||(Date.parse(row.day+"T00:00:00Z")-Date.parse(prev.day+"T00:00:00Z")!==86400000))continue;
+      const arr=perDay.get(row.day)||[];
+      arr.push(Math.max(0,row.value-prev.value));perDay.set(row.day,arr);
+    }
+  }
+  return days.map(date=>{
+    const values=perDay.get(date)||[];
+    return {date,value:values.length?values.reduce((sum,x)=>sum+x,0):null,
+      known:values.length,source:"snapshot_daily_growth"};
+  });
+}
 export function bestTimes(posts,snapshots,pageId,{minSamples=3}={}){
   const byVideo=new Map();
   for(const s of snapshots){
