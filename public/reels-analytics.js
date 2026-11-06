@@ -161,7 +161,10 @@ async function detail(id){
      " · "+data.history.length+" snapshot";
    for(const [key,label] of [["views","Lượt xem"],["likes","Lượt thích"],["comments","Bình luận"],["shares","Chia sẻ"]]){
      const div=el("div","","modal-stat");div.append(el("small",label),el("b",fmt(r[key])));
-     if(r[key]===null)div.append(el("small",r.availability?.[key]||"Không khả dụng"));
+     if(r[key]===null){
+     const labels={missing_permission:"Thiếu quyền",unsupported:"Meta không hỗ trợ",no_data:"Chưa có số liệu",error:"Lỗi đồng bộ"};
+     div.append(el("small",labels[r.availability?.[key]]||"Không khả dụng"));
+   }
      $("modalStats").append(div);
    }
    if(r.permalink&&/^https:\/\/(www\.|m\.)?facebook\.com\//.test(r.permalink)){
@@ -190,8 +193,14 @@ async function load(){
    $("lastSync").textContent=d.summary.from+" → "+d.summary.until+" · Đồng bộ cuối: "+time(last);
    const hasError=(d.summary.lastSync||[]).some(x=>x.status==="failed");
    setStatus(hasError?"Một Page đồng bộ lỗi":last?"Đã cập nhật":"Chưa có dữ liệu",hasError);
-   note(d.summary.reelCount?"LƯU Ý CÁCH TÍNH":"CHƯA CÓ DỮ LIỆU",d.summary.reelCount?
-     "Reel views là số tích lũy hiện tại của bài đăng trong kỳ, không phải lượt xem phát sinh trong kỳ.":
+   const pageStates=(d.summary.lastSync||[]).flatMap(s=>Object.values(s.metricStatus?.page||{}));
+   const needsPermission=pageStates.includes("missing_permission");
+   const unsupported=pageStates.includes("unsupported");
+   note(needsPermission?"THIẾU QUYỀN META":unsupported&&!d.summary.reelCount?"METRIC KHÔNG HỖ TRỢ":
+      d.summary.reelCount?"LƯU Ý CÁCH TÍNH":"CHƯA CÓ DỮ LIỆU",
+     needsPermission?"Một số Page chưa cấp read_insights. Hãy kết nối lại Meta rồi đồng bộ.":
+     unsupported&&!d.summary.reelCount?"Meta không trả được một số metric trên Page này; không hiển thị số 0 giả.":
+     d.summary.reelCount?"Reel views là số tích lũy hiện tại của bài đăng trong kỳ, không phải lượt xem phát sinh trong kỳ.":
      "Hãy cấp quyền read_insights và chạy đồng bộ Meta. Không hiển thị số mẫu.");
  }catch(e){
    if(seq!==epoch)return;
