@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b0d17"><title>Anpi Drama Studio</title>
+<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b0d17"><title>Anpi Drama Studio</title><meta name="description" content="Anpi Drama Studio: quản lý video, Google Drive, Facebook Reels, TikTok và YouTube Shorts qua các tài khoản được ủy quyền.">
 <style>
 *{box-sizing:border-box}body{margin:0;background:#0b0d17;color:#f2f0fa;font:14px system-ui,sans-serif}header{border-bottom:1px solid #292941;background:#121421;padding:14px 5%;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h1{font-size:20px;margin:0;letter-spacing:-.6px}h1 b{color:#bd96ff}h2{font-size:20px;margin-top:0}main{max-width:1200px;margin:auto;padding:20px}button,input,select,textarea{font:inherit;padding:10px 12px;border-radius:10px;border:1px solid #393a51;background:#1c2031;color:inherit}button{cursor:pointer;transition:border-color .15s,background .15s}button:hover:not(:disabled){border-color:#ba9bfc}button:disabled{opacity:.5;cursor:not-allowed}.primary{background:#7547ce;border-color:#7547ce;color:white;font-weight:650}.primary:hover:not(:disabled){background:#8557de}.danger{background:#4a2030;border-color:#7c354d;color:#ffb8c6}.hidden{display:none!important}.tabs{display:flex;gap:8px;margin-bottom:20px;overflow-x:auto}.tabs button.active{background:#7547ce;border-color:#9b72ef;font-weight:650}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.toolbar input{flex:1;min-width:180px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:15px;margin-top:20px}.movie{text-align:left;padding:0;overflow:hidden;background:#181a2a;border-radius:14px}.cover{height:225px;background:linear-gradient(145deg,#3a2256,#8667af);display:grid;place-items:center;font-size:40px}.cover img{height:100%;width:100%;object-fit:cover}.movie .info{padding:11px}.movie strong{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-height:40px;font-size:13px}small,.muted{color:#a4a5bb}.panel{border:1px solid #31334a;border-radius:14px;background:#181b2a;padding:18px;margin:16px 0}.episodes{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:7px;margin:15px 0}.episodes button:disabled{opacity:.35}.episodes button.on-drive{border-color:#34a853;background:#182e24;color:#81e69b;font-weight:600}.player{display:block;background:black;width:100%;max-width:320px;aspect-ratio:9/16;margin:18px auto;border-radius:12px}.statline{margin:16px 0;color:#bda7e0;font-size:13px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{max-width:100%}.notice{color:#c0b1d7;line-height:1.6}.work{border-bottom:1px solid #34364a;padding:12px 0}.work:last-child{border:0}code{background:#121422;padding:2px 6px;border-radius:6px;color:#d6bfff;overflow-wrap:anywhere}#error{color:#ffb1ba;white-space:pre-wrap}#message{color:#bfa4ff;white-space:pre-wrap;margin:8px 0}
 .header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -155,6 +155,7 @@
 <body>
 <header>
   <h1><b>ANPI</b> DRAMA <span style="font-weight:400;color:#a3a3b9">STUDIO</span></h1>
+  <nav aria-label="Thông tin công khai" style="display:flex;gap:13px;align-items:center;flex-wrap:wrap;font-size:12px"><a href="/about.html" style="color:#d3bdff">Giới thiệu</a><a href="/terms.html" style="color:#d3bdff">Điều khoản</a><a href="/privacy.html" style="color:#d3bdff">Quyền riêng tư</a></nav>
   <div id="headerActions" class="header-right hidden">
     <span id="driveHeaderBadge" class="drive-pill">Drive: Chưa kết nối</span>
     <button id="headerConnectDrive" class="btn-sm primary">Liên kết Google Drive</button>
@@ -170,6 +171,8 @@
         <button class="primary">Đăng nhập</button>
       </form>
       <p id="error"></p>
+      <p class="notice" style="font-size:12px;margin-top:16px">Anpi Drama Studio hỗ trợ quản lý thư viện, Google Drive và đăng video đã có quyền sử dụng lên TikTok, YouTube Shorts, Facebook Reels qua tài khoản được ủy quyền. <a href="/about.html" style="color:#d2b9ff">Xem thông tin công khai</a>.</p>
+      <p style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;margin-bottom:0"><a href="/terms.html" style="color:#d2b9ff">Điều khoản dịch vụ</a><a href="/privacy.html" style="color:#d2b9ff">Chính sách quyền riêng tư</a><a href="/data-deletion.html" style="color:#d2b9ff">Xóa dữ liệu</a></p>
     </div>
   </section>
 
@@ -491,5 +494,6 @@
   </dialog>
 </section>
 </main>
+<footer style="border-top:1px solid #343850;padding:19px 5%;color:#a5a5bd;font-size:12px;display:flex;gap:15px;flex-wrap:wrap;align-items:center"><span>© 2026 Anpi Drama Studio</span><a href="/about.html" style="color:#bfaaff">Giới thiệu</a><a href="/terms.html" style="color:#bfaaff">Điều khoản dịch vụ</a><a href="/privacy.html" style="color:#bfaaff">Chính sách quyền riêng tư</a><a href="/data-deletion.html" style="color:#bfaaff">Yêu cầu xóa dữ liệu</a></footer>
 <script type="module" src="/app.js"></script>
 </body></html>
