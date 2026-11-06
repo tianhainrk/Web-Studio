@@ -151,9 +151,11 @@ function topReels(){
  if(!list.length)root.append(el("li","Chưa có Reel đủ dữ liệu."));
 }
 async function detail(id){
- $("modal").hidden=false;$("modalTitle").textContent="Đang tải Reel…";$("modalStats").replaceChildren();resize();
+ const embedded=parent!==window;
+ if(!embedded){$("modal").hidden=false;$("modalTitle").textContent="Đang tải Reel…";$("modalStats").replaceChildren();resize();}
  try{
    const data=await api("/reels/"+id+"?"+query()),r=data.reel;
+   if(embedded){parent.postMessage({type:"anpi-reels-analytics-detail",detail:data},location.origin);return;}
    $("modalTitle").textContent=(r.episode?"EP"+String(r.episode).padStart(3,"0"):"Reel")+" · Phân tích";
    $("modalDesc").textContent=data.page+" · Lịch dự kiến "+time(r.publishedAt)+" · Đồng bộ "+time(r.sampledAt)+
      " · "+data.history.length+" snapshot";
@@ -165,7 +167,7 @@ async function detail(id){
    if(r.permalink&&/^https:\/\/(www\.|m\.)?facebook\.com\//.test(r.permalink)){
      const a=el("a","Mở trên Facebook ↗","table-action");a.href=r.permalink;a.target="_blank";a.rel="noopener noreferrer";$("modalStats").append(a);
    }
- }catch(e){$("modalDesc").textContent=e.message;}
+ }catch(e){if(embedded)setStatus(e.message,true);else $("modalDesc").textContent=e.message;}
  resize();
 }
 async function trend(){
