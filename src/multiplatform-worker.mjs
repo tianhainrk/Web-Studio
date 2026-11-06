@@ -142,15 +142,19 @@ async function tiktokPost(job,access){
   return answer.publish_id;
 }
 async function reconcile(){
-  const rows=await db("multi_publish_jobs?status=eq.processing&remote_id=not.is.null"+
-    "&select=id,account_id,provider,remote_id,privacy&order=updated_at.asc&limit=15");
+  // A crash after provider initialization may leave an uploading job with
+  // remote_id. Check remote state without creating a second remote upload.
+  const rows=await db("multi_publish_jobs?status=in.(processing,uploading,needs_review)&remote_id=not.is.null"+
+    "&select=id,account_id,provider,remote_id,privacy,status,updated_at&order=updated_at.asc&limit=25");
   for(const job of rows){
     try{
       const account=await getAccount(job.account_id),access=await tokenFor(account);
       if(job.provider==="tiktok"){
         const r=await tikRequest("/v2/post/publish/status/fetch/",access,{publish_id:job.remote_id});
         const status=tiktokStatus(r.status);
-        await patch(job.id,{status,remote_status:{status:r.status,public_post_ids:r.publicaly_available_post_id||[]},
+        const pending=status==="processing"&&job.status==="needs_review"?"needs_review":status;
+        await patch(job.id,{status:pending,
+          remote_status:{status:r.status,public_post_ids:r.publicaly_available_post_id||[]},
           ...(status==="failed"?{error:"TikTok báo đăng thất bại; kiểm tra trước khi đăng lại"}:{})});
       }else{
         const x=await fetchJSON("https://www.googleapis.com/youtube/v3/videos?"+
@@ -159,11 +163,15 @@ async function reconcile(){
         const status=x.items?.[0]?.status||{};
         const failed=["failed","rejected","deleted"].includes(status.uploadStatus);
         const done=status.uploadStatus==="processed";
-        await patch(job.id,{status:failed?"failed":done?(status.privacyStatus==="private"?"uploaded_private":"published"):"processing",
+        const pending=job.status==="needs_review"?"needs_review":"processing";
+        await patch(job.id,{status:failed?"failed":done?(status.privacyStatus==="private"?"uploaded_private":"published"):pending,
           remote_status:{uploadStatus:status.uploadStatus||null,privacyStatus:status.privacyStatus||null}});
       }
     }catch(err){console.warn("multi reconcile",job.id,String(err?.message||"error").slice(0,120));}
   }
+  const stale=await db("multi_publish_jobs?status=eq.uploading&remote_id=is.null&claimed_at=lt."+
+    encodeURIComponent(new Date(Date.now()-35*60000).toISOString())+"&select=id&limit=25");
+  for(const j of stale)await patch(j.id,{status:"needs_review",error:"Upload quá 35 phút không có remote ID; kiểm tra thủ công trước khi thử lại"});
 }
 export async function main(){
   if(process.env.MULTIPLATFORM_PUBLISH_ENABLED!=="true"){
