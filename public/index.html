@@ -480,6 +480,13 @@
     <div class="rd-dialog-head"><div><span class="rd-overline">BẢN NHÁP</span><h3 id="rdCaptionTitle">Chỉnh caption và giờ đăng</h3></div><button class="rd-x" data-rd-close="rdCaptionDialog" type="button" aria-label="Đóng">×</button></div>
     <div class="rd-dialog-body"><label class="rd-field">Giờ đăng (Việt Nam)<input id="rdDraftTime" type="datetime-local"></label><label class="rd-field">Caption<textarea id="rdDraftCaption" rows="7" maxlength="2200"></textarea></label><p id="rdDraftChar" class="muted"></p><div class="rd-dialog-footer"><button data-rd-close="rdCaptionDialog" type="button">Đóng</button><button id="rdDraftSave" class="rd-primary" type="button">Lưu bản nháp</button></div></div>
   </dialog>
+  <dialog id="rdAnalyticsDialog" class="rd-analytics-dialog" aria-labelledby="rdAnalyticsTitle">
+    <div class="rd-analytics-modal-head"><h3 id="rdAnalyticsTitle">Phân tích Reel</h3>
+      <button id="rdAnalyticsClose" type="button" aria-label="Đóng popup">Đóng ×</button></div>
+    <p id="rdAnalyticsDesc"></p>
+    <div id="rdAnalyticsStats" class="rd-analytics-modal-stats"></div>
+    <p class="rd-analytics-disclaimer">Thống kê từ Meta API; metric thiếu quyền hoặc chưa đồng bộ được hiển thị —, không phải 0.</p>
+  </dialog>
 </section>
 </main>
 <script type="module" src="/app.js"></script>
