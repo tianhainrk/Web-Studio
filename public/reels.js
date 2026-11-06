@@ -2,6 +2,7 @@ const $=id=>document.getElementById(id);
 const zone="Asia/Ho_Chi_Minh";
 const VN_OFFSET=7*3600000;
 let initialized=false,pages=[],series=[],episodes=[],jobs=[],campaigns=[],activePage="",view="overview";
+let analyticsEnabled=false;
 let pageDiagnostics=[];
 let selectedDay="",weekOffset=0;
 const selection=new Map(),drafts=new Map();
@@ -39,11 +40,17 @@ function startTomorrow(){
 function openDialog(id){$(id).showModal();}
 function closeDialog(id){$(id).close();}
 function setView(next){
-  view=next==="campaigns"?"campaigns":"overview";
-  for(const n of ["overview","campaigns"]){
-    $(n==="overview"?"rdOverview":"rdCampaignsView").classList.toggle("hidden",n!==view);
+  view=next==="campaigns"?"campaigns":next==="analytics"&&analyticsEnabled?"analytics":"overview";
+  for(const n of ["overview","campaigns","analytics"]){
+    const id=n==="overview"?"rdOverview":n==="campaigns"?"rdCampaignsView":"rdAnalyticsView";
+    $(id).classList.toggle("hidden",n!==view);
     const b=document.querySelector('#reels [data-rd-view="'+n+'"]');
     if(b)b.classList.toggle("active",n===view);
+  }
+  $("reels").classList.toggle("rd-analytics-active",view==="analytics");
+  if(view==="analytics"){
+    const frame=$("rdAnalyticsFrame");
+    if(!frame.getAttribute("src"))frame.setAttribute("src",frame.dataset.src);
   }
   renderDashboard();
 }
@@ -455,6 +462,10 @@ async function refreshReports(){
 }
 async function refreshAll(){
   const config=await api("/config");
+  analyticsEnabled=!!config.analyticsEnabled;
+  const nav=document.querySelector('#reels [data-rd-view="analytics"]');
+  nav.classList.toggle("hidden",!analyticsEnabled);
+  if(!analyticsEnabled&&view==="analytics")setView("overview");
   $("statusPanel").replaceChildren();
   for(const [key,value] of Object.entries(config))if(typeof value==="boolean")$("statusPanel").append(el("span",key+": "+(value?"✓":"chưa cấu hình"),"rd-summary-chip"));
   await refreshPages();await Promise.all([refreshReports(),refreshDiagnostics(),refreshSeries().catch(e=>show("Không thể tải thư mục Drive: "+e.message,true))]);
@@ -514,12 +525,34 @@ async function cancelVideoBatch(){
   if(!confirm("Hủy hàng đợi Gemini cũ? Không xóa file trên Drive."))return;
   await api("/ai/video/cancel",{batchId:oldVideoBatch});$("videoCancel").classList.add("hidden");show("Đã hủy hàng đợi Gemini cũ.");
 }
+function showAnalyticsReelDetail(data){
+  const r=data?.reel;if(!r||!r.id)return;
+  const title=r.episode?"EP"+String(r.episode).padStart(3,"0"):"Facebook Reel";
+  $("rdAnalyticsTitle").textContent=title+" · Phân tích";
+  $("rdAnalyticsDesc").textContent=String(data.page||"Fanpage")+
+    " · Lịch dự kiến: "+(r.publishedAt?vnLong(r.publishedAt):"—")+
+    " · Đồng bộ: "+(r.sampledAt?vnLong(r.sampledAt):"Chưa có dữ liệu")+
+    " · "+(data.history?.length||0)+" snapshot";
+  const root=$("rdAnalyticsStats");root.replaceChildren();
+  for(const [key,label] of [["views","Lượt xem"],["likes","Lượt thích"],["comments","Bình luận"],["shares","Chia sẻ"]]){
+    const card=el("div","","rd-analytics-modal-stat");
+    card.append(el("small",label),el("b",typeof r[key]==="number"?new Intl.NumberFormat("vi-VN").format(r[key]):"—"));
+    if(r[key]===null&&r.availability?.[key])card.append(el("small",String(r.availability[key])));
+    root.append(card);
+  }
+  if(typeof r.permalink==="string"&&/^https:\/\/(www\.|m\.)?facebook\.com\//.test(r.permalink)){
+    const link=el("a","Mở trên Facebook ↗");link.href=r.permalink;
+    link.target="_blank";link.rel="noopener noreferrer";root.append(link);
+  }
+  if(!$("rdAnalyticsDialog").open)$("rdAnalyticsDialog").showModal();
+}
 function initReelsStudio(){
   if(initialized)return;initialized=true;
   $("startDate").value=startTomorrow();
   $("rdPage").onchange=()=>handle(async()=>{activePage=$("rdPage").value;$("pageSelect").value=activePage;selectedDay="";weekOffset=0;await refreshReports();});
   $("reelsRefresh").onclick=()=>handle(refreshAll);
   $("rdConnect").onclick=()=>openDialog("rdConnectDialog");
+  $("rdAnalyticsClose").onclick=()=>closeDialog("rdAnalyticsDialog");
   $("rdHealth").onclick=()=>{openDialog("rdConnectDialog");handle(refreshDiagnostics);};
   $("rdRefreshHealth").onclick=()=>handle(refreshDiagnostics);
   $("rdNew").onclick=()=>{openDialog("rdComposer");wizard(0);if(!series.length)handle(refreshSeries);};
@@ -528,6 +561,16 @@ function initReelsStudio(){
   $("rdThisWeek").onclick=()=>selectDay(todayVN());
   $("rdCloseDay").onclick=()=>{selectedDay="";renderDashboard();};
   for(const item of document.querySelectorAll('#reels [data-rd-view]'))item.onclick=()=>setView(item.dataset.rdView);
+  window.addEventListener("message",event=>{
+    const frame=$("rdAnalyticsFrame");
+    if(event.origin!==location.origin||event.source!==frame.contentWindow)return;
+    if(event.data?.type==="anpi-reels-analytics-detail"){
+      showAnalyticsReelDetail(event.data.detail);return;
+    }
+    if(event.data?.type!=="anpi-reels-analytics-height")return;
+    const h=Number(event.data.height);
+    if(Number.isFinite(h)&&h>=300&&h<=20000)frame.style.height=Math.ceil(h)+"px";
+  });
   for(const item of document.querySelectorAll('#reels [data-rd-close]'))item.onclick=()=>closeDialog(item.dataset.rdClose);
   $("google").onclick=()=>handle(()=>connect("google"));
   $("meta").onclick=()=>handle(()=>connect("meta"));

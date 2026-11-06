@@ -86,7 +86,7 @@ export function clientConfig(){
     google:!!(process.env.GOOGLE_CLIENT_ID&&process.env.GOOGLE_CLIENT_SECRET),
     meta:!!(process.env.META_APP_ID&&process.env.META_APP_SECRET),
     gemini:!!process.env.GEMINI_API_KEY,muse:!!(process.env.MUSE2API_BASE_URL&&process.env.MUSE2API_API_KEY),
-    worker:"github_actions",timezone:TIMEZONE};
+    analyticsEnabled:process.env.REELS_ANALYTICS_ENABLED==="true",worker:"github_actions",timezone:TIMEZONE};
 }
 export async function fetchJSON(url,{method="GET",body,headers={},timeout=20000}={}){
   const res=await fetch(url,{method,headers,...(body===undefined?{}:{body}),signal:AbortSignal.timeout(timeout)});

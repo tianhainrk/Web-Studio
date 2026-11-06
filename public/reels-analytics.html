@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b0d17" />
+<title>Anpi Drama Studio — Reels Analytics</title>
+<link rel="stylesheet" href="/reels-analytics.css" />
+</head>
+<body>
+
+<main>
+  <section class="section-heading"><div><div class="eyebrow">ANPI DRAMA · SOCIAL STUDIO</div><h1>Facebook Reels <span style="color:#b99cf2;font-weight:600">/ Analytics</span></h1><p>Đánh giá lượt xem, tương tác và hiệu quả của từng Fanpage</p></div><button class="ghost" id="infoButton">ⓘ Về báo cáo</button></section>
+  
+  <div class="demo-note"><span class="demo-dot"></span><span id="analyticsNotice"><b>DỮ LIỆU THẬT</b> — chưa có dữ liệu. Hãy đồng bộ Meta và cấp quyền read_insights cho mỗi Page.</span></div>
+  <div class="control-bar"><div class="seg" role="group" aria-label="Lọc Fanpage"><button type="button" data-page="all" class="active">Tất cả Page</button></div><div class="control-right"><select id="period" aria-label="Chọn thời gian"><option value="7">7 ngày qua</option><option value="30" selected>30 ngày qua</option><option value="90">90 ngày qua</option></select><select id="metricSelector" aria-label="Chọn chỉ số biểu đồ"><option value="views">Lượt xem</option><option value="likes">Lượt thích</option><option value="shares">Lượt chia sẻ</option></select><button class="primary" id="refresh"><svg class="inline-icon" viewBox="0 0 24 24"><path d="M20 6v5h-5M4 18v-5h5"/><path d="M4.8 9A8 8 0 0 1 19 6l1 5M4 13l1 5a8 8 0 0 0 14.2-3"/></svg>Đồng bộ dữ liệu</button></div></div>
+  <div class="meta-time"><span id="lastSync">Đang kiểm tra lần đồng bộ gần nhất</span><span class="healthy" id="apiState">● Chưa đồng bộ</span></div>
+  <section class="metrics" id="metrics"></section>
+  <section class="analytics-grid"><article class="surface"><div class="surface-head"><div><h2 id="trendTitle">Lượt xem theo ngày</h2><p id="trendSubtitle">Hiệu suất theo mốc thời gian</p></div><span class="surface-badge" id="trendBadge">30 ngày</span></div><div class="chart-wrap"><svg viewBox="0 0 710 310" role="img" aria-label="Biểu đồ lượt xem theo ngày" id="trendSvg"></svg></div></article><article class="surface heat-panel"><h2>Khung giờ đăng hiệu quả</h2><p>Trung vị lượt xem khoảng 24 giờ sau đăng · chỉ khi đủ mẫu</p><div class="heat-layout"><div class="heat-grid" id="heatGrid"></div><div class="heat-key"><b>Lượt xem ~24h</b><span><i style="background:#443162"></i>Thấp</span><span><i style="background:#7a4dbd"></i>Trung bình</span><span><i style="background:#bf80ff"></i>Cao</span></div></div><p class="heat-info" id="heatInfo">Chưa đủ dữ liệu để đánh giá khung giờ đăng.</p></article></section>
+  <section class="lower-grid"><article class="surface"><div class="surface-head"><div><h2>So sánh hiệu suất Fanpage</h2><p>Dựa trên chỉ số đã chọn và khoảng thời gian</p></div></div><div class="compare-content" id="compareContent"></div></article><article class="surface"><div class="surface-head"><div><h2>Tổng hợp theo Fanpage</h2><p>Hai Page có thể được xem riêng hoặc cộng tổng</p></div></div><div class="page-tbl-wrap"><table><thead><tr><th>Fanpage</th><th>Lượt xem</th><th>Thích</th><th>Bình luận</th><th>Chia sẻ</th></tr></thead><tbody id="pageTable"></tbody></table></div></article></section>
+  <section class="bottom-grid"><article class="surface data-panel"><div class="data-head"><div><h2>Hiệu suất Reels gần đây</h2><p>Nhấn vào tập để xem phân tích chi tiết</p></div><div class="table-controls"><input id="search" class="search" type="search" placeholder="Tìm EP001, EP002..." aria-label="Tìm tập" /></div></div><div class="table-scroll"><table class="reel-table"><thead><tr><th>Video</th><th>Fanpage</th><th class="numeric">Lượt xem</th><th class="numeric">Thích</th><th class="numeric">Bình luận</th><th class="numeric">Chia sẻ</th><th>Trạng thái</th><th></th></tr></thead><tbody id="reelRows"></tbody></table></div><div class="mobile-cards" id="mobileRows"></div><button id="toggleMoreMobile" type="button" class="table-action mobile-more" hidden>Xem thêm ↓</button><div class="table-foot"><span id="reelCount">Hiển thị các video được chọn</span><button id="toggleMore" class="table-action" type="button">Xem thêm ↓</button></div></article><article class="surface"><div class="surface-head"><div><h2>Top Reels theo lượt xem</h2><p>Các Reel có lượt xem cao nhất trong dữ liệu đã đồng bộ</p></div></div><ol class="top-list" id="topReels"></ol></article></section>
+  <div class="strategy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M9 18h6m-5 3h4M9 14c-1.8-1.2-3-3.2-3-5a6 6 0 0 1 12 0c0 1.8-1.2 3.8-3 5-.8.6-1 1.3-1 2h-4c0-.7-.2-1.4-1-2z"/></svg><div><b>Kết nối Analytics với AI lên lịch</b><p>Hệ thống sử dụng thống kê Reels đã đồng bộ để tham khảo khung giờ trong lệnh Muse khi đủ mẫu; không tự thay đổi lịch chiến dịch đã lưu.</p></div></div>
+  <p class="footnote">Anpi Drama • Reels Analytics · Dữ liệu đồng bộ từ Meta Graph API · Thời gian Việt Nam</p>
+</main>
+<div class="dialog-backdrop" id="modal" hidden><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-head"><h2 id="modalTitle">Phân tích Reel</h2><button class="close" id="closeModal" type="button">Đóng ✕</button></div><p id="modalDesc"></p><div class="modal-stat-grid" id="modalStats"></div><div class="modal-note">Chỉ số lấy từ Meta API, có thể cập nhật chậm hoặc không khả dụng tùy quyền và loại bài đăng.</div></div></div>
+<script type="module" src="/reels-analytics.js"></script>
+</body>
+</html>

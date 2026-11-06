@@ -1,11 +1,13 @@
 import {balancedCounts,validateBalancedSchedule,balancedSchedule} from "./reels-planning.mjs";
+import {reelsAnalyticsRoute} from "./reels-analytics-api.mjs";
+import {bestTimes,recommendations} from "./reels-analytics-core.mjs";
 import {pageQueueDiagnostics} from "./reels-diagnostics.mjs";
 import {safeToRetryFailedUpload} from "./reels-upload.mjs";
 import {dispatchReelsWorker} from "./reels-dispatch.mjs";
 import {prepareMuse,parsePlanItems,validateMuseReply,validateGoldenMuseReply,validateApprovedPlan,requestMusePlan,requestGeminiPlan,musePrompt,planSpecification} from "./muse-planner.mjs";
 import {oauthState,verifyOauthState,encryptToken,db,audit,clientConfig,fetchJSON,getGoogleAccessToken,driveSeries,driveEpisodes,scheduleEpisodes,validId,requiredConfig} from "./reels-core.mjs";
 const graph="https://graph.facebook.com/v26.0";
-const permittedScopes="pages_show_list,pages_read_engagement,pages_manage_posts";
+const permittedScopes="pages_show_list,pages_read_engagement,pages_manage_posts"+(process.env.REELS_ANALYTICS_ENABLED==="true"?",read_insights":"");
 function json(res,status,value){res.writeHead(status,{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store","X-Content-Type-Options":"nosniff"});res.end(JSON.stringify(value));}
 function redirect(res,url){res.writeHead(302,{"Location":url,"Cache-Control":"no-store"});res.end();}
 function fail(res,code,message){return json(res,code,{error:message});}
@@ -31,6 +33,11 @@ export async function reelsRoute(req,res,path){
     const url=new URL(req.url,origin(req));
     const method=req.method;
     if(path==="/config"&&method==="GET")return json(res,200,clientConfig());
+    if(path.startsWith("/analytics/")){
+      if(process.env.REELS_ANALYTICS_ENABLED!=="true")
+        return fail(res,503,"Analytics chưa bật. Cần chạy supabase/reels-analytics.sql, cấp quyền read_insights và đặt REELS_ANALYTICS_ENABLED=true.");
+      return reelsAnalyticsRoute(req,res,path.slice("/analytics".length),url);
+    }
     if(path==="/oauth/google/start"&&method==="GET"){
       requiredConfig(["GOOGLE_CLIENT_ID","GOOGLE_CLIENT_SECRET","SESSION_SECRET"]);
       const p=new URL("https://accounts.google.com/o/oauth2/v2/auth");
@@ -138,7 +145,26 @@ export async function reelsRoute(req,res,path){
     }
     if(path==="/muse/prepare"&&method==="POST"){
       const request=await body(req);const prepared=await prepareMuse(request);
-      return json(res,200,{prompt:prepared.prompt,entries:prepared.batch,total:prepared.spec.all.length});
+      let prompt=prepared.prompt,insights=null;
+      if(process.env.REELS_ANALYTICS_ENABLED==="true"&&request.aiSchedule===true&&/^\d+$/.test(String(request.pageId||""))){
+        try{
+          const pageId=String(request.pageId);
+          const [posts,snapshots]=await Promise.all([
+            db("reel_analytics_posts?page_id=eq."+pageId+"&select=page_id,meta_video_id,published_at&order=published_at.desc&limit=500"),
+            db("reel_analytics_snapshots?page_id=eq."+pageId+"&select=page_id,meta_video_id,sampled_at,views&order=sampled_at.desc&limit=2000")
+          ]);
+          insights=recommendations(bestTimes(posts,snapshots,pageId));
+          if(insights.sufficient){
+            prompt+="\n\nTHỐNG KÊ THỰC TẾ TỪ FANPAGE (được đồng bộ từ Meta, chỉ để THAM KHẢO ưu tiên chọn giờ): "+
+              JSON.stringify({sampleTotal:insights.sampleTotal,
+                slots:insights.slots.map(s=>({weekdayMonday0:s.weekday,hourVN:s.hour,
+                  sampledVideos:s.count,medianViewsAround24h:s.median24hViews}))})+
+              "\nChỉ áp dụng khi không vi phạm ngày đã phân bổ, ít nhất 10 tập/ngày và khoảng cách 15 phút. Không tự thay đổi số tập/ngày. Không coi các giờ là bảo đảm viral.";
+          }
+        }catch(e){console.warn("Analytics scheduling hints unavailable",String(e.message).slice(0,120));}
+      }
+      return json(res,200,{prompt,entries:prepared.batch,total:prepared.spec.all.length,
+        analyticsUsed:!!insights?.sufficient});
     }
     // A single user request queues every selected video; GitHub Actions performs
     // expensive Gemini Files API analysis outside the Vercel request lifecycle.

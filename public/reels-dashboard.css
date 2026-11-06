@@ -216,3 +216,28 @@ body:has(#reels:not(.hidden)) main{max-width:1440px}
 #reels .rd-health-stats span{font-size:11px;color:#d9dbef;border:1px solid #374056;padding:5px 8px;border-radius:7px;background:#222943}
 #reels .rd-health-error{font-size:11px;color:#ffacbb;overflow-wrap:anywhere;margin:10px 0 0}
 @media(max-width:720px){#reels .rd-health-top{align-items:flex-start}#reels .rd-health-top button{width:100%}#reels .rd-health-stats span{font-size:10px}}
+
+/* Analytics adopts the exact approved HTML layout inside its same-origin iframe. */
+#reels.rd-analytics-active .rd-head,#reels.rd-analytics-active .rd-pagebar,#reels.rd-analytics-active .rd-metrics,#reels.rd-analytics-active #notice{display:none!important}
+#reels.rd-analytics-active .rd-nav{margin-top:4px;margin-bottom:0}
+#reels #rdAnalyticsView{padding:0;min-height:900px}
+#reels #rdAnalyticsFrame{width:100%;display:block;border:0;max-width:100%}
+@media(max-width:720px){#reels.rd-analytics-active .rd-nav{margin:3px 0 0}#reels #rdAnalyticsView{min-height:750px}}
+
+/* Host-level Analytics popup reproduces the approved HTML modal design.
+   It stays visible even when Analytics is embedded in a tall iframe. */
+#reels .rd-analytics-dialog{width:min(480px,calc(100vw - 28px));max-height:calc(100dvh - 26px);overflow-y:auto;
+ color:#f5f3ff;background:#171b2c;border:1px solid #5a4a7f;border-radius:16px;
+ box-shadow:0 16px 40px #0007;padding:21px}
+#reels .rd-analytics-dialog::backdrop{background:#02030bbb;backdrop-filter:blur(5px)}
+#reels .rd-analytics-modal-head{display:flex;align-items:center;justify-content:space-between;gap:9px}
+#reels .rd-analytics-modal-head h3{font-size:19px;margin:0 0 5px}
+#reels .rd-analytics-modal-head button{background:#242a3f;border:1px solid #3b435c;border-radius:9px;color:white;padding:7px 11px}
+#reels #rdAnalyticsDesc{font-size:12px;color:#b5bdd0;line-height:1.6;margin:14px 0}
+#reels .rd-analytics-modal-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#reels .rd-analytics-modal-stat{background:#20263a;padding:12px;border:1px solid #343b54;border-radius:10px}
+#reels .rd-analytics-modal-stat small{display:block;color:#a8b4c9;font-size:10px}
+#reels .rd-analytics-modal-stat b{display:block;margin-top:6px;font-size:21px;font-variant-numeric:tabular-nums}
+#reels .rd-analytics-disclaimer{font-size:11px;color:#aea5c8;margin:15px 0 0;line-height:1.6}
+#reels .rd-analytics-modal-stats a{font-size:12px;color:#ddc0ff}
+@media(max-width:680px){#reels .rd-analytics-dialog{padding:17px}#reels .rd-analytics-modal-stat b{font-size:19px}}

@@ -1,0 +1,28 @@
+name: Sync Facebook Reels Analytics
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: anpi-reels-analytics-sync
+  cancel-in-progress: false
+jobs:
+  sync:
+    if: vars.REELS_ANALYTICS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Sync Page and published Reels insights
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          REELS_ENCRYPTION_KEY: ${{ secrets.REELS_ENCRYPTION_KEY }}
+          REELS_ANALYTICS_ENABLED: "true"
+          REELS_ANALYTICS_BATCH_PER_PAGE: "12"
+        run: node scripts/reels-analytics-worker.mjs

@@ -368,6 +368,7 @@
     <nav class="rd-nav" aria-label="Quản lý Facebook Reels">
       <button type="button" data-rd-view="overview" class="active">Tổng quan</button>
       <button type="button" data-rd-view="campaigns">Chiến dịch</button>
+      <button type="button" data-rd-view="analytics" class="hidden">Phân tích</button>
     </nav>
     <div id="rdOverview" class="rd-view">
       <div class="rd-section-title rd-week-header">
@@ -398,6 +399,12 @@
       <div class="rd-section-title"><div><h3>Chiến dịch của Page</h3><p>Không hiển thị lẫn lịch của các Fanpage khác</p></div></div>
       <div id="rdCampaignList" class="rd-list"></div>
     </div>
+    <section id="rdAnalyticsView" class="rd-view hidden" aria-label="Phân tích Facebook Reels">
+      <iframe id="rdAnalyticsFrame" title="Anpi Drama · Reels Analytics"
+        data-src="/reels-analytics.html" loading="lazy"
+        style="display:block;width:100%;min-height:1000px;border:0;background:#0b0d17"
+      ></iframe>
+    </section>
   </div>
 
   <dialog id="rdConnectDialog" class="rd-dialog" aria-labelledby="rdConnectTitle">
@@ -472,6 +479,13 @@
   <dialog id="rdCaptionDialog" class="rd-dialog" aria-labelledby="rdCaptionTitle">
     <div class="rd-dialog-head"><div><span class="rd-overline">BẢN NHÁP</span><h3 id="rdCaptionTitle">Chỉnh caption và giờ đăng</h3></div><button class="rd-x" data-rd-close="rdCaptionDialog" type="button" aria-label="Đóng">×</button></div>
     <div class="rd-dialog-body"><label class="rd-field">Giờ đăng (Việt Nam)<input id="rdDraftTime" type="datetime-local"></label><label class="rd-field">Caption<textarea id="rdDraftCaption" rows="7" maxlength="2200"></textarea></label><p id="rdDraftChar" class="muted"></p><div class="rd-dialog-footer"><button data-rd-close="rdCaptionDialog" type="button">Đóng</button><button id="rdDraftSave" class="rd-primary" type="button">Lưu bản nháp</button></div></div>
+  </dialog>
+  <dialog id="rdAnalyticsDialog" class="rd-analytics-dialog" aria-labelledby="rdAnalyticsTitle">
+    <div class="rd-analytics-modal-head"><h3 id="rdAnalyticsTitle">Phân tích Reel</h3>
+      <button id="rdAnalyticsClose" type="button" aria-label="Đóng popup">Đóng ×</button></div>
+    <p id="rdAnalyticsDesc"></p>
+    <div id="rdAnalyticsStats" class="rd-analytics-modal-stats"></div>
+    <p class="rd-analytics-disclaimer">Thống kê từ Meta API; metric thiếu quyền hoặc chưa đồng bộ được hiển thị —, không phải 0.</p>
   </dialog>
 </section>
 </main>
