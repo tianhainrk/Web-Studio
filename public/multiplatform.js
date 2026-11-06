@@ -34,7 +34,7 @@ function syncPlatformFields(){
   const youtube=targets.some(x=>x.provider==="youtube");
   $("mpYtFields").classList.toggle("hidden",!youtube);
   $("mpTitle").required=youtube;
-  if(tiktok&&!config.tiktokMediaReady)notify("TikTok: cần cấu hình TIKTOK_VERIFIED_MEDIA_HOST và xác minh URL media trước khi tạo lịch.",true);
+  if(tiktok&&!config.tiktokMediaReady)notify("TikTok sẽ upload trực tiếp MP4 từ Google Drive. Nếu dùng URL riêng, cần xác minh tên miền TikTok.");
 }
 function renderSeries(){
   const select=$("mpSeries");select.replaceChildren(new Option("Chọn phim trên Google Drive",""));
@@ -161,8 +161,8 @@ export async function initMultiplatform(){
           <div id="mpTikFields" class="hidden">
             <label>Quyền riêng tư TikTok<select id="mpTikPrivacy"></select></label>
             <p id="mpPublicWarning" class="mp-hint"></p>
-            <label>URL MP4 từ tên miền đã xác minh với TikTok<input id="mpSourceUrl" type="url" placeholder="https://video.tenmiencuaban.vn/ep001.mp4"></label>
-            <p class="mp-hint">TikTok PULL_FROM_URL không hỗ trợ link Drive thông thường. Cần URL công khai trên tên miền do bạn sở hữu và TikTok xác minh.</p>
+            <label>URL MP4 đã xác minh (không bắt buộc)<input id="mpSourceUrl" type="url" placeholder="Để trống để upload trực tiếp từ Google Drive"></label>
+            <p class="mp-hint">Để trống để worker truyền video từ Google Drive sang TikTok bằng FILE_UPLOAD. Nếu nhập URL, tên miền HTTPS phải được TikTok xác minh.</p>
           </div>
           <label class="mp-check"><input type="checkbox" id="mpRights" required> Tôi sở hữu hoặc có quyền phân phối video và âm thanh trên các kênh đã chọn.</label>
           <label class="mp-check"><input type="checkbox" id="mpConsent" required> Tôi đồng ý đưa nội dung vào hàng đợi xuất bản của những tài khoản đã chọn.</label>
