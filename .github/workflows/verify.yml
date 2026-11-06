@@ -24,6 +24,10 @@ jobs:
           node --check src/gemini-video.mjs
           node --check scripts/gemini-video-worker.mjs
           node --check src/reels-api.mjs
+          node --check src/multiplatform-core.mjs
+          node --check src/multiplatform-api.mjs
+          node --check src/multiplatform-worker.mjs
+          node --check public/multiplatform.js
           node --check src/reels-analytics-core.mjs
           node --check src/reels-analytics-meta.mjs
           node --check src/reels-analytics-api.mjs
