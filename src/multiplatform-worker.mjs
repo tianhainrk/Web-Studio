@@ -88,7 +88,7 @@ async function tiktokPost(job,access){
   // for server-hosted assets (PULL_FROM_URL). Do not use Drive download URLs.
   const result=await tikRequest("/v2/post/publish/video/init/",access,{
     post_info:{title:job.caption.slice(0,2200),privacy_level:job.privacy,
-      disable_duet:true,disable_comment:false,disable_stitch:true},
+      disable_duet:true,disable_comment:!!creator.comment_disabled,disable_stitch:true},
     source_info:{source:"PULL_FROM_URL",video_url:job.source_url}
   });
   if(!result.publish_id||!/^v_[a-z_]+/i.test(result.publish_id))
@@ -112,7 +112,7 @@ async function reconcile(){
           {headers:{"Authorization":"Bearer "+access}});
         const status=x.items?.[0]?.status||{};
         const failed=["failed","rejected","deleted"].includes(status.uploadStatus);
-        const done=status.uploadStatus==="processed"||status.uploadStatus==="uploaded";
+        const done=status.uploadStatus==="processed";
         await patch(job.id,{status:failed?"failed":done?(status.privacyStatus==="private"?"uploaded_private":"published"):"processing",
           remote_status:{uploadStatus:status.uploadStatus||null,privacyStatus:status.privacyStatus||null}});
       }
