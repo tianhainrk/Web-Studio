@@ -637,6 +637,8 @@ async function openStudioWizard(){
   if(selected)$("mpWizardChannel").value=selected;
   const current=$("mpWizardSeries").value;
   if(!current&&series.length){$("mpWizardSeries").value=series[0].id;$("mpSeries").value=series[0].id;}
+  if($("mpWizardSeries").value&&$("mpSeries").value!==$("mpWizardSeries").value)
+    $("mpSeries").value=$("mpWizardSeries").value;
   if($("mpWizardSeries").value&&(!episodes.length||$("mpSeries").value!==$("mpWizardSeries").value)){
     $("mpSeries").value=$("mpWizardSeries").value;await loadEpisodes();
   }
@@ -747,8 +749,26 @@ export async function initMultiplatform(){
   $("mpYoutubeConnect").onclick=()=>location.href="/api/reels/multi/oauth/youtube/start";
   $("mpTikTokConnect").onclick=()=>location.href="/api/reels/multi/oauth/tiktok/start";
   $("mpReload").onclick=()=>refreshMultiplatform();
+  $("mpWizardChannel").onchange=()=>{
+    const selected=$("mpWizardChannel").value;
+    if(selected)chooseWizardChannel(selected);else invalidateMuseDraft();
+  };
+  $("mpWizardSeries").onchange=()=>{
+    $("mpSeries").value=$("mpWizardSeries").value;
+    loadEpisodes().catch(e=>notify(e.message,true));
+  };
+  for(const id of ["mpAiFrom","mpAiTo","mpAiStartDate","mpAiStartTime","mpAiPerDay","mpAiInterval","mpAiInstructions"])
+    $(id).addEventListener("change",invalidateMuseDraft);
+  $("mpMusePrepare").onclick=()=>prepareYoutubeMuse().catch(e=>notify(e.message,true));
+  $("mpMuseCopy").onclick=()=>copyYoutubeMusePrompt().catch(e=>notify(e.message,true));
+  $("mpMuseDownload").onclick=()=>{try{downloadYoutubeMusePrompt();}catch(e){notify(e.message,true);}};
+  $("mpMuseJsonFile").onchange=()=>readMuseJsonFile().catch(e=>notify(e.message,true));
+  $("mpMuseImport").onclick=()=>importYoutubeMuse().catch(e=>{
+    $("mpMuseStatus").textContent="JSON chưa hợp lệ: "+e.message;notify(e.message,true);
+  });
+  $("mpWizardReview").onclick=()=>setWizardStep(3);
   $("mpAttentionRefresh").onclick=()=>loadJobs().catch(e=>notify(e.message,true));
-  $("mpAiGenerate").onclick=()=>generateYoutubeCampaign().catch(e=>{notify(e.message,true);$("mpAiProgress").textContent="Lỗi: "+e.message;});
+  $("mpAiGenerate").onclick=()=>generateYoutubeCampaign().then(()=>setWizardStep(3)).catch(e=>{notify(e.message,true);$("mpAiProgress").textContent="Lỗi: "+e.message;});
   $("mpAiApprove").onclick=()=>approveYoutubeCampaign().catch(e=>notify(e.message,true));
   $("mpJobClose").onclick=()=>$("mpJobDialog").close();
   $("mpJobSave").onclick=()=>updateYoutubeJob().catch(e=>notify(e.message,true));
