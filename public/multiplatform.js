@@ -88,10 +88,10 @@ async function loadJobs(){
 async function loadAll(){
   const c=await api("/config");
   config=c;
-  if(!c.enabled){$("mpCreate").disabled=true;$("mpYoutubeConnect").disabled=true;
+  if(!c.enabled){$("mpCreate").disabled=true;$("mpAiGenerate").disabled=true;$("mpYoutubeConnect").disabled=true;
     $("mpTikTokConnect").disabled=true;notify("Bật MULTIPLATFORM_ENABLED=true trên Vercel sau khi áp dụng SQL.",true);return;}
-  const [a,j]=await Promise.all([api("/accounts"),api("/jobs")]);
-  config=c;accounts=a.accounts||[];jobs=j.jobs||[];
+  const [a,j,attention]=await Promise.all([api("/accounts"),api("/jobs"),api("/jobs/attention")]);
+  config=c;accounts=a.accounts||[];jobs=j.jobs||[];attentionJobs=attention.jobs||[];
   $("mpConnected").textContent=accounts.length+" kênh đã liên kết";
   $("mpWorkerState").textContent=config.workerEnabled?"Cấu hình worker trên Vercel đã bật":"Cần bật GitHub Actions worker để tự đăng";
   $("mpYoutubeConnect").disabled=!c.youtube;
@@ -285,6 +285,7 @@ async function generateYoutubeCampaign(){
   const title=series.find(s=>s.id===$("mpSeries").value)?.title||series.find(s=>s.id===$("mpSeries").value)?.name;
   if(!title)throw Error("Chưa có tên phim");
   aiDrafts=[];aiGenerating=true;renderAiDrafts();$("mpAiGenerate").disabled=true;
+  const preparedDrafts=[];
   $("mpAiApprove").disabled=true;
   try{
     for(let offset=0;offset<slots.length;offset+=8){
@@ -297,10 +298,10 @@ async function generateYoutubeCampaign(){
       for(let i=0;i<subset.length;i++){
         const item=answer.plan[i],slot=subset[i];
         if(item.episode!==slot.episode)throw Error("Gemini trả sai thứ tự tập");
-        aiDrafts.push({...slot,...item,folderId:$("mpSeries").value});
+        preparedDrafts.push({...slot,...item,folderId:$("mpSeries").value});
       }
-      renderAiDrafts();
     }
+    aiDrafts=preparedDrafts;
   }finally{aiGenerating=false;$("mpAiGenerate").disabled=!config.gemini||!config.enabled;renderAiDrafts();}
 }
 async function approveYoutubeCampaign(){
