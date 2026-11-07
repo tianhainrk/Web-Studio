@@ -57,3 +57,18 @@ References:
 - https://developers.google.com/youtube/data/reference/rest/v3/videos/insert
 - https://developers.google.com/youtube/data/revision_history
 - https://support.google.com/youtube/answer/15424877
+
+## YouTube Shorts Studio · Muse-powered Reels-style workflow (2026-11-07)
+
+The tab **YouTube Shorts & TikTok** now opens a YouTube-first dashboard matching Facebook Reels navigation: channel picker, today's schedule, published/queued/review-needed counters, seven-day calendar, campaigns grouped by Drive folder and queue. The existing one-video TikTok/YouTube form remains in **Đăng lẻ / TikTok** and the account connector remains in **Kênh đã kết nối**.
+
+### Create a Muse campaign
+
+1. Choose **+ Chiến dịch**. In Step 1 select a connected YouTube channel, a movie folder in PineDrama-Library, an episode range (1–40 existing `EPxxx.mp4` files), start date/hour in **Asia/Ho_Chi_Minh**, episodes per day, minimum spacing (15 minutes), and editorial instructions.
+2. Click **Tiếp tục · Xuất lệnh Muse**. The authenticated Studio backend verifies the selected account and exact Drive files, then creates **one** Drive-connected Muse instruction with correct folder ID, file IDs, scheduled UTC times, JSON schema and cleanup requirements. Download TXT or copy into the Muse session where the user explicitly connected Google Drive. **Never paste OAuth tokens or API keys into Muse.**
+3. Muse is instructed to analyze each MP4 using only its existing Drive access (when it can access/play the video), draft accurate **YouTube title** (1–100 chars), **description** (1–2200 chars), and optional new hour. The Vietnamese calendar date must remain unchanged; proposals must be within 07:00–22:00 local time. If Muse cannot actually inspect an MP4 it must use `skipped`, not invent a scene. Muse may output `anpi-youtube-shorts-plan.json` or sequential partial JSON blocks.
+4. Upload one or more JSON files, or paste the JSON in Step 2, then click **Nhập và kiểm tra JSON**. The server validates the selected account/folder/file IDs against Drive again, rejects unrelated or duplicate episodes and bad titles/times, and returns only verified plan rows; import can merge partial blocks. Missing/skipped episodes are listed and cannot be silently approved.
+5. In Step 3 **Xem và chỉnh bản nháp**, edit each title, description and time, explicitly confirm distribution rights and consent, then choose **Duyệt và xếp lịch YouTube**. Nothing is published automatically by generating or importing a Muse JSON. Once approved, one independently tracked job per episode is created in Supabase, and existing GitHub Actions worker processes due jobs when `MULTIPLATFORM_PUBLISH_ENABLED=true` is enabled as a GitHub **repository variable** and required Actions secrets are present.
+6. Inspect the daily calendar or **Hàng đợi / Cần kiểm tra** and use the existing safe retry/reconciliation functions. Unknown remote uploads are not blindly duplicated. Facebook Reels tables, OAuth routes, and worker are unchanged.
+
+**Limits:** Muse relies on the tool capabilities of the user's connected Muse account; this Studio does not claim to verify that Muse actually watched all MP4s. The importer accepts JSON data, not attestations of Muse's actions. The tool does not add transcoding or force YouTube's Shorts classification. GitHub Actions schedule is best-effort, not second-accurate.
