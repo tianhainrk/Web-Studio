@@ -361,6 +361,102 @@ async function approveYoutubeCampaign(){
 const vnDay=iso=>new Date(Date.parse(iso)+7*3600000).toISOString().slice(0,10);
 const vnToday=()=>vnDay(new Date().toISOString());
 const showTime=iso=>new Date(iso).toLocaleString("vi-VN",{timeZone:"Asia/Ho_Chi_Minh",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+
+function buildCurrentMuseContext(){
+  const channel=accounts.find(x=>x.id===$("mpWizardChannel").value&&x.provider==="youtube"&&x.active);
+  if(!channel)throw Error("Chọn kênh YouTube đã kết nối");
+  const movie=series.find(x=>x.id===$("mpSeries").value);
+  if(!movie)throw Error("Chọn phim trên Google Drive");
+  const slots=buildAiSlots();
+  return {accountId:channel.id,folderId:movie.id,seriesTitle:movie.title||movie.name,
+    instructions:$("mpAiInstructions").value.trim(),
+    items:slots.map(x=>({episode:x.episode,fileId:x.fileId,filename:x.filename,scheduledAt:x.scheduledAt}))};
+}
+function invalidateMuseDraft(){
+  museContext=null;museContextSignature="";campaignSlots=[];aiDrafts=[];museSkipped=[];
+  if($("mpMusePrompt"))$("mpMusePrompt").value="";
+  if($("mpMuseReply"))$("mpMuseReply").value="";
+  if($("mpMuseStatus"))$("mpMuseStatus").textContent="Các lựa chọn đã thay đổi. Hãy xuất lại lệnh Muse.";
+  if($("mpAiRights"))$("mpAiRights").checked=false;
+  if($("mpAiConsent"))$("mpAiConsent").checked=false;
+  renderAiDrafts();
+}
+function chooseWizardChannel(id){
+  for(const check of document.querySelectorAll("#mpAccounts input[type=checkbox]")){
+    const account=accounts.find(a=>a.id===check.value);
+    if(account?.provider==="youtube")check.checked=check.value===id;
+  }
+  syncPlatformFields();
+  invalidateMuseDraft();
+}
+async function prepareYoutubeMuse(){
+  const context=buildCurrentMuseContext();
+  $("mpMusePrepare").disabled=true;
+  try{
+    const result=await api("/muse/youtube/prepare",context);
+    museContext=context;museContextSignature=JSON.stringify(context);
+    campaignSlots=buildAiSlots().map(x=>({...x}));
+    aiDrafts=[];museSkipped=[];
+    $("mpAiRights").checked=false;$("mpAiConsent").checked=false;
+    $("mpMusePrompt").value=result.prompt||"";
+    $("mpMuseReply").value="";
+    $("mpMuseStatus").textContent="Lệnh dành cho "+campaignSlots.length+
+      " tập đã tạo. Dán vào Muse có Drive đã kết nối, rồi tải JSON hoặc dán trả lời.";
+    renderAiDrafts();
+    setWizardStep(2);
+  }finally{$("mpMusePrepare").disabled=false;}
+}
+async function importYoutubeMuse(){
+  if(!museContext||!museContextSignature)throw Error("Cần xuất lệnh Muse trước khi nhập JSON");
+  if(JSON.stringify(buildCurrentMuseContext())!==museContextSignature)
+    throw Error("Thông tin kênh, phim hoặc lịch đã đổi. Hãy xuất lệnh Muse mới.");
+  const reply=$("mpMuseReply").value.trim();
+  if(!reply)throw Error("Chọn file JSON hoặc dán phản hồi từ Muse");
+  const button=$("mpMuseImport");button.disabled=true;
+  try{
+    const result=await api("/muse/youtube/parse",{...museContext,reply});
+    const byEpisode=new Map(aiDrafts.map(x=>[x.episode,x]));
+    for(const imported of result.plan||[]){
+      const slot=campaignSlots.find(x=>x.episode===imported.episode);
+      if(!slot)throw Error("Muse trả tập chưa được chọn");
+      byEpisode.set(imported.episode,{...slot,...imported,folderId:museContext.folderId});
+    }
+    aiDrafts=[...byEpisode.values()].sort((a,b)=>a.episode-b.episode);
+    const skipMap=new Map(museSkipped.map(x=>[x.episode,x]));
+    for(const skipped of result.skipped||[])skipMap.set(skipped.episode,skipped);
+    for(const d of aiDrafts)skipMap.delete(d.episode);
+    museSkipped=[...skipMap.values()].sort((a,b)=>a.episode-b.episode);
+    renderAiDrafts();
+    const missing=campaignSlots.filter(x=>!byEpisode.has(x.episode)).map(x=>x.episode);
+    $("mpMuseStatus").textContent="Đã nhập "+aiDrafts.length+"/"+campaignSlots.length+
+      " tập. "+(missing.length?"Chưa có: "+missing.map(n=>"EP"+String(n).padStart(3,"0")).join(", ")+". ":"Đã đủ số tập. ")+
+      (museSkipped.length?"Muse bỏ qua "+museSkipped.length+" tập cần xử lý lại. ":"")+
+      (result.cleanupStatus?"Muse báo dọn workspace: "+result.cleanupStatus+" (chưa xác minh).":"");
+    $("mpMuseReply").value="";
+    notify("Đã kiểm tra và nhập JSON Muse. "+aiDrafts.length+"/"+campaignSlots.length+" tập.");
+    if(!missing.length)setWizardStep(3);
+  }finally{button.disabled=false;}
+}
+async function copyYoutubeMusePrompt(){
+  const prompt=$("mpMusePrompt").value;
+  if(!prompt)throw Error("Chưa tạo lệnh Muse");
+  try{await navigator.clipboard.writeText(prompt);notify("Đã sao chép lệnh Muse.");}
+  catch{$("mpMusePrompt").focus();$("mpMusePrompt").select();notify("Chọn Copy để sao chép nội dung đang được bôi đen.");}
+}
+function downloadYoutubeMusePrompt(){
+  const prompt=$("mpMusePrompt").value;if(!prompt)throw Error("Chưa tạo lệnh Muse");
+  const blob=new Blob([prompt],{type:"text/plain;charset=utf-8"});
+  const url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download="anpi-youtube-shorts-muse-prompt.txt";document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+}
+async function readMuseJsonFile(){
+  const file=$("mpMuseJsonFile").files?.[0];if(!file)return;
+  if(file.size>250000)throw Error("File JSON Muse vượt quá 250 KB; chia kết quả thành nhiều tệp nhỏ");
+  $("mpMuseReply").value=await file.text();
+  $("mpMuseStatus").textContent="Đã đọc "+file.name+". Nhấn Nhập và kiểm tra JSON để xác thực.";
+}
+
 function setupStudioLayout(root){
   const header=root.querySelector(".mp-header");
   header.querySelector("h2").textContent="YouTube Shorts";
