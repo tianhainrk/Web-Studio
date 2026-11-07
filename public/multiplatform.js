@@ -278,7 +278,7 @@ function updateAiValidation(){
 function renderAiDrafts(){
   const root=$("mpAiDrafts");if(!root)return;
   root.replaceChildren();
-  if(!aiDrafts.length){$("mpAiApprove").disabled=true;return;}
+  if(!aiDrafts.length){$("mpAiApprove").disabled=true;updateAiValidation();return;}
   for(const d of aiDrafts){
     const card=mk("div","","mp-draft");
     const hd=mk("strong","Tập "+String(d.episode).padStart(3,"0")+" · "+d.filename);
@@ -342,7 +342,7 @@ async function approveYoutubeCampaign(){
         if(exists){skip.push(channel.display_name+" "+draft.filename);continue;}
         const payload={provider:"youtube",accountId:channel.id,folderId:draft.folderId,
           fileId:draft.fileId,filename:draft.filename,title:draft.title.trim(),
-          caption:draft.caption.trim(),scheduledAt:draft.scheduledAt,privacy:$("mpYtPrivacy").value,
+          caption:draft.caption.trim(),scheduledAt:draft.scheduledAt,privacy:$("mpWizardPrivacy").value,
           rightsConfirmed:true,consentToPublish:true};
         try{
           await api("/jobs",payload);count++;
@@ -686,6 +686,7 @@ export async function initMultiplatform(){
         </form>
 
         <section class="mp-card mp-ai-card" id="mpAiCard" aria-labelledby="mpAiTitle">
+          <h3 id="mpAiTitle" class="mp-eyebrow">CHIẾN DỊCH YOUTUBE SHORTS</h3>
           <p id="mpWizardHint" class="mp-hint">Tất cả lịch chỉ được tạo sau khi bạn kiểm tra nội dung và nhấn duyệt.</p>
           <section id="mpWizardStep1" class="mp-step">
             <h3>1. Chọn kênh, phim và lịch cơ sở</h3>
@@ -693,6 +694,11 @@ export async function initMultiplatform(){
               <label>Kênh YouTube<select id="mpWizardChannel" aria-label="Kênh YouTube lập chiến dịch"></select></label>
               <label>Phim từ Google Drive<select id="mpWizardSeries" aria-label="Phim trên Google Drive"></select></label>
             </div>
+            <label>Quyền riêng tư YouTube khi đăng<select id="mpWizardPrivacy">
+              <option value="public" selected>Công khai</option>
+              <option value="unlisted">Không công khai (có link mới xem được)</option>
+              <option value="private">Riêng tư</option>
+            </select></label>
             <div class="mp-two"><label>Tập bắt đầu<input id="mpAiFrom" type="number" min="1" max="5000" value="1"></label>
               <label>Tập kết thúc<input id="mpAiTo" type="number" min="1" max="5000" value="10"></label></div>
             <div class="mp-two"><label>Ngày bắt đầu (giờ Việt Nam)<input id="mpAiStartDate" type="date"></label>
@@ -751,6 +757,7 @@ export async function initMultiplatform(){
   $("mpYoutubeConnect").onclick=()=>location.href="/api/reels/multi/oauth/youtube/start";
   $("mpTikTokConnect").onclick=()=>location.href="/api/reels/multi/oauth/tiktok/start";
   $("mpReload").onclick=()=>refreshMultiplatform();
+  $("mpWizardPrivacy").onchange=()=>{$("mpYtPrivacy").value=$("mpWizardPrivacy").value;};
   $("mpWizardChannel").onchange=()=>{
     const selected=$("mpWizardChannel").value;
     if(selected)chooseWizardChannel(selected);else invalidateMuseDraft();
