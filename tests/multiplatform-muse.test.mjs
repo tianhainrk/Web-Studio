@@ -43,7 +43,7 @@ test("Muse cannot add episodes, duplicate files, or move VN calendar dates",()=>
  const m=validateYouTubeMuseManifest(base,{now});
  const altered=structuredClone(example);altered.items[0].episode=9;
  assert.throws(()=>parseYoutubeMuseReply(JSON.stringify(altered),m,{now}),/ngoài danh sách/);
- altered.items[0].episode=3;
+ altered.items[0].episode=3;altered.items[0].scheduledAt=example.items[1].scheduledAt;
  assert.throws(()=>parseYoutubeMuseReply(JSON.stringify(altered),m,{now}),/trùng/);
  const changed=structuredClone(example);changed.items[0].scheduledAt="2026-11-10T03:00:00Z";
  assert.throws(()=>parseYoutubeMuseReply(JSON.stringify(changed),m,{now}),/đúng ngày/);
