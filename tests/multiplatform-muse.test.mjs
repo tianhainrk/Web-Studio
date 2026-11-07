@@ -18,7 +18,7 @@ test("Muse requires exact video manifest, ordered EP filenames and scheduled ISO
  assert.equal(manifest.items.length,3);
  assert.throws(()=>validateYouTubeMuseManifest({...base,items:[base.items[1],base.items[0]]},{now}),/tập/i);
  assert.throws(()=>validateYouTubeMuseManifest({...base,items:[{...base.items[0],filename:"EP099.mp4"}]},{now}),/EPxxx/);
- assert.throws(()=>validateYouTubeMuseManifest({...base,items:[{...base.items[0],scheduledAt:"2026-11-09T00:00:00Z"}]},{now}),/07:00/);
+ assert.throws(()=>validateYouTubeMuseManifest({...base,items:[{...base.items[0],scheduledAt:"2026-11-08T23:00:00Z"}]},{now}),/07:00/);
  assert.throws(()=>validateYouTubeMuseManifest({...base,items:new Array(41).fill(base.items[0])},{now}),/1–40/);
 });
 test("Muse instruction binds exact Drive folder, file IDs and clean JSON format",()=>{
