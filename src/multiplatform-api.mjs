@@ -1,5 +1,6 @@
-import {oauthState,verifyOauthState,encryptToken,decryptToken,db,fetchJSON,getGoogleAccessToken,requiredConfig,validId} from "./reels-core.mjs";
+import {oauthState,verifyOauthState,encryptToken,decryptToken,db,audit,fetchJSON,getGoogleAccessToken,requiredConfig,validId} from "./reels-core.mjs";
 import {cleanPostRequest,isTikTokApprovedPrivate} from "./multiplatform-core.mjs";
+import {prepareYouTubeAiRequest,youtubeAiPrompt,youtubeAiRequest,normalizeYouTubeAiDraft,safeYoutubeRetry,cleanYoutubeUpdate} from "./multiplatform-planner.mjs";
 const GRAPH="https://open.tiktokapis.com";
 const json=(res,code,value)=>{res.writeHead(code,{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"});res.end(JSON.stringify(value));};
 const fail=(res,code,msg)=>json(res,code,{error:String(msg).slice(0,240)});
@@ -57,7 +58,8 @@ export async function multiRoute(req,res,path){
         tiktok:!!(process.env.TIKTOK_CLIENT_KEY&&process.env.TIKTOK_CLIENT_SECRET),
         tiktokMediaReady:!!process.env.TIKTOK_VERIFIED_MEDIA_HOST,
         tiktokPublicApproved:process.env.TIKTOK_PUBLIC_POSTING_APPROVED==="true",
-        workerEnabled:process.env.MULTIPLATFORM_PUBLISH_ENABLED==="true"});
+        workerEnabled:process.env.MULTIPLATFORM_PUBLISH_ENABLED==="true",
+         gemini:!!process.env.GEMINI_API_KEY});
     if(process.env.MULTIPLATFORM_ENABLED!=="true")return fail(res,503,"Đăng đa nền tảng chưa bật trên Vercel");
     if(/^\/oauth\/(youtube|tiktok)\/start$/.test(path)&&method==="GET"){
       const provider=path.split("/")[2];
@@ -118,8 +120,94 @@ export async function multiRoute(req,res,path){
       return json(res,200,{accounts});
     }
     if(path==="/jobs"&&method==="GET"){
-      const jobs=await db("multi_publish_jobs?select=id,account_id,provider,filename,title,caption,scheduled_at,privacy,status,remote_id,remote_status,error,created_at&order=scheduled_at.desc&limit=200");
+      const jobs=await db("multi_publish_jobs?select=id,account_id,provider,folder_id,file_id,filename,title,caption,scheduled_at,privacy,status,remote_id,remote_status,error,updated_at,created_at&order=scheduled_at.desc&limit=500");
       return json(res,200,{jobs});
+    }
+    if(path==="/ai/youtube/plan"&&method==="POST"){
+      if(!process.env.GEMINI_API_KEY)return fail(res,503,"Chưa cấu hình GEMINI_API_KEY trên Vercel");
+      const b=await input(req);
+      let prepared;
+      try{prepared=prepareYouTubeAiRequest(b);}catch(e){return fail(res,400,e.message);}
+      const model=process.env.GEMINI_MODEL||"gemini-2.5-flash";
+      if(!/^[A-Za-z0-9._-]+$/.test(model))return fail(res,503,"Model Gemini không hợp lệ");
+      const resp=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent",{
+        method:"POST",headers:{"x-goog-api-key":process.env.GEMINI_API_KEY,"Content-Type":"application/json"},
+        body:JSON.stringify(youtubeAiRequest(youtubeAiPrompt(prepared))),redirect:"error",signal:AbortSignal.timeout(45000)});
+      if(!resp.ok)return fail(res,502,"Gemini HTTP "+resp.status+"; kiểm tra model, quota hoặc AI API key");
+      const data=await resp.json();
+      const result=data.candidates?.[0]?.content?.parts?.map(part=>part.text||"").join("")||"";
+      let plan;
+      try{plan=normalizeYouTubeAiDraft(result,prepared.items);}catch(e){return fail(res,502,e.message);}
+      await audit("youtube_ai_plan_drafted",{episodes:plan.map(x=>x.episode),source:"drive_metadata_only"});
+      return json(res,200,{plan,source:"metadata_only",status:"draft"});
+    }
+    if(path==="/jobs/attention"&&method==="GET"){
+      const fields="id,account_id,provider,folder_id,file_id,filename,title,caption,scheduled_at,privacy,status,remote_id,remote_status,error,updated_at";
+      const active=await db("multi_publish_jobs?provider=eq.youtube&status=in.(failed,uploading,processing,needs_review)"+
+        "&select="+fields+"&order=updated_at.desc&limit=200");
+      const older=new Date(Date.now()-5*60000).toISOString();
+      const overdue=await db("multi_publish_jobs?provider=eq.youtube&status=eq.queued&scheduled_at=lt."+
+        encodeURIComponent(older)+"&select="+fields+"&order=scheduled_at.asc&limit=200");
+      const records=new Map([...active,...overdue].map(j=>[j.id,j]));
+      return json(res,200,{jobs:[...records.values()],checkedAt:new Date().toISOString(),
+        partial:active.length>=200||overdue.length>=200});
+    }
+    if(path==="/jobs/update"&&method==="POST"){
+      const b=await input(req),id=String(b.id||"");
+      if(!/^[0-9a-f-]{36}$/i.test(id))return fail(res,400,"ID bài YouTube không hợp lệ");
+      let updatedBody;
+      try{updatedBody=cleanYoutubeUpdate(b);}catch(e){return fail(res,400,e.message);}
+      const rows=await db("multi_publish_jobs?id=eq."+id+"&provider=eq.youtube&status=eq.queued",{
+        method:"PATCH",prefer:"return=representation",body:{...updatedBody,updated_at:new Date().toISOString()}});
+      if(!rows?.length)return fail(res,409,"Chỉ có thể sửa bài YouTube chưa bắt đầu tải lên");
+      await audit("youtube_job_updated",{id,episode:rows[0].filename});
+      return json(res,200,{ok:true,job:rows[0]});
+    }
+    if(path==="/jobs/retry"&&method==="POST"){
+      const b=await input(req),id=String(b.id||"");
+      if(!/^[0-9a-f-]{36}$/i.test(id))return fail(res,400,"ID bài YouTube không hợp lệ");
+      const job=(await db("multi_publish_jobs?id=eq."+id+
+        "&select=id,provider,status,remote_id,error,filename&limit=1"))?.[0];
+      if(!safeYoutubeRetry(job))return fail(res,409,"Chưa xác minh an toàn để đăng lại; cần kiểm tra kênh YouTube trước");
+      // A failed pre-upload OAuth/account step has no remote video. The worker
+      // sets needs_review for any failure after an upload attempt has started.
+      const scheduled=new Date(Date.now()+2*60000).toISOString();
+      const rows=await db("multi_publish_jobs?id=eq."+id+"&provider=eq.youtube&status=eq.failed&remote_id=is.null",{
+        method:"PATCH",prefer:"return=representation",
+        body:{status:"queued",error:null,scheduled_at:scheduled,claimed_at:null,updated_at:new Date().toISOString()}});
+      if(!rows?.length)return fail(res,409,"Bài đã đổi trạng thái; tải lại danh sách");
+      await audit("youtube_retry_queued",{id,filename:job.filename,previousError:String(job.error||"").slice(0,100)});
+      return json(res,200,{ok:true,scheduledAt:scheduled,note:"Đã xếp lại sau 2 phút; worker GitHub Actions phải được bật"});
+    }
+    if(path==="/jobs/reconcile"&&method==="POST"){
+      const b=await input(req),id=String(b.id||"");
+      if(!/^[0-9a-f-]{36}$/i.test(id))return fail(res,400,"ID bài YouTube không hợp lệ");
+      const job=(await db("multi_publish_jobs?id=eq."+id+
+        "&provider=eq.youtube&select=id,account_id,status,remote_id&limit=1"))?.[0];
+      if(!job?.remote_id)return fail(res,409,"Không có YouTube video ID; kiểm tra thủ công trước khi đăng lại");
+      if(!/^[A-Za-z0-9_-]{8,30}$/.test(job.remote_id))return fail(res,409,"YouTube video ID không hợp lệ");
+      const account=(await db("multi_publish_accounts?id=eq."+job.account_id+
+        "&provider=eq.youtube&active=eq.true&select=id,provider,secret_enc&limit=1"))?.[0];
+      if(!account)return fail(res,409,"Kênh YouTube chưa được kết nối hoặc đã tắt");
+      const response=await fetchJSON("https://www.googleapis.com/youtube/v3/videos?"+
+        new URLSearchParams({part:"status",id:job.remote_id}),{headers:{"Authorization":"Bearer "+await accountToken(account)}});
+      const remote=response.items?.[0]?.status;
+      if(!remote)return fail(res,409,"YouTube chưa trả trạng thái video; không tự đăng lại");
+      const state=["failed","rejected","deleted"].includes(remote.uploadStatus)?"failed":
+        remote.uploadStatus==="processed"?(remote.privacyStatus==="private"?"uploaded_private":"published"):"processing";
+      const before=["processing","uploading","needs_review","failed"].includes(job.status);
+      let status=job.status;
+      if(before){
+        const rows=await db("multi_publish_jobs?id=eq."+id+
+          "&status=in.(processing,uploading,needs_review,failed)",{
+          method:"PATCH",prefer:"return=representation",
+          body:{status:state,remote_status:{uploadStatus:remote.uploadStatus||null,
+            privacyStatus:remote.privacyStatus||null},updated_at:new Date().toISOString()}});
+        status=rows?.[0]?.status||job.status;
+      }
+      await audit("youtube_job_reconciled",{id,status,remoteId:job.remote_id});
+      return json(res,200,{ok:true,status,remote:{uploadStatus:remote.uploadStatus||null,
+        privacyStatus:remote.privacyStatus||null}});
     }
     if(path==="/tiktok/creator"&&method==="POST"){
       const body=await input(req);
