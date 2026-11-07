@@ -1,7 +1,7 @@
 let ready=false,accounts=[],series=[],episodes=[],jobs=[],attentionJobs=[],config={};
 let aiDrafts=[],aiGenerating=false,editingYouTubeJob=null;
 let studioView="overview",studioWeekOffset=0,studioSelectedDay="",campaignSlots=[],museContext=null,museContextSignature="",museSkipped=[];
-let wizardStep=1;
+let wizardStep=1,loadedFolderId="";
 const $=id=>document.getElementById(id);
 const mk=(tag,content="",cls="")=>{const x=document.createElement(tag);x.textContent=content;if(cls)x.className=cls;return x;};
 function notify(msg,isError=false){const n=$("mpNotice");n.textContent=msg;n.classList.toggle("error",isError);}
@@ -122,8 +122,10 @@ async function loadSeries(){
   const r=await drive("/series");series=r.series||[];renderSeries();renderStudioDashboard();
 }
 async function loadEpisodes(){
-  const folder=$("mpSeries").value;episodes=[];renderEpisodes();if(!folder)return;
-  const data=await drive("/episodes?folder="+encodeURIComponent(folder));episodes=data.episodes||[];renderEpisodes();
+  const folder=$("mpSeries").value;episodes=[];loadedFolderId="";renderEpisodes();if(!folder)return;
+  const data=await drive("/episodes?folder="+encodeURIComponent(folder));
+  if($("mpSeries").value!==folder)return;
+  episodes=data.episodes||[];loadedFolderId=folder;renderEpisodes();
   aiDrafts=[];campaignSlots=[];museContext=null;museContextSignature="";museSkipped=[];renderAiDrafts();
   const nums=episodes.map(x=>Number(x.episode)).filter(Number.isInteger);
   $("mpAiFrom").value=nums[0]||1;$("mpAiTo").value=nums[Math.min(nums.length-1,9)]||1;
@@ -639,7 +641,7 @@ async function openStudioWizard(){
   if(!current&&series.length){$("mpWizardSeries").value=series[0].id;$("mpSeries").value=series[0].id;}
   if($("mpWizardSeries").value&&$("mpSeries").value!==$("mpWizardSeries").value)
     $("mpSeries").value=$("mpWizardSeries").value;
-  if($("mpWizardSeries").value&&(!episodes.length||$("mpSeries").value!==$("mpWizardSeries").value)){
+  if($("mpWizardSeries").value&&(!episodes.length||loadedFolderId!==$("mpWizardSeries").value)){
     $("mpSeries").value=$("mpWizardSeries").value;await loadEpisodes();
   }
   setWizardStep(1);
