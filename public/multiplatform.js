@@ -181,8 +181,30 @@ export async function initMultiplatform(){
           <label class="mp-check"><input type="checkbox" id="mpConsent" required> Tôi đồng ý đưa nội dung vào hàng đợi xuất bản của những tài khoản đã chọn.</label>
           <button class="mp-main-btn" id="mpCreate" type="submit">+ Xếp lịch các kênh đã chọn</button>
         </form>
+
+        <section class="mp-card mp-ai-card" aria-labelledby="mpAiTitle">
+          <div class="mp-card-head"><h3 id="mpAiTitle">4. AI chiến dịch YouTube Shorts</h3><span class="mp-tag">Gemini · duyệt trước</span></div>
+          <p class="mp-hint">Gemini dựa vào tên phim và số tập để đề xuất tiêu đề, mô tả và giờ đăng. AI không xem nội dung video ở chế độ này. Bạn được sửa từng bài trước khi duyệt.</p>
+          <div class="mp-two"><label>Tập bắt đầu<input id="mpAiFrom" type="number" min="1" max="5000" value="1"></label>
+            <label>Tập kết thúc<input id="mpAiTo" type="number" min="1" max="5000" value="10"></label></div>
+          <div class="mp-two"><label>Ngày bắt đầu (Việt Nam)<input id="mpAiStartDate" type="date"></label>
+            <label>Giờ bài đầu (Việt Nam)<input id="mpAiStartTime" type="time" value="09:00"></label></div>
+          <div class="mp-two"><label>Bài mỗi ngày<select id="mpAiPerDay"><option value="2">2 bài</option><option value="3" selected>3 bài</option><option value="5">5 bài</option><option value="8">8 bài</option></select></label>
+            <label>Khoảng cách (phút)<input id="mpAiInterval" type="number" min="15" max="600" value="120"></label></div>
+          <label>Phong cách tiêu đề và mô tả<textarea id="mpAiInstructions" rows="2" maxlength="800" placeholder="Tự nhiên, gợi tò mò, tránh spoil, tối đa 3 hashtag"></textarea></label>
+          <div class="mp-actions"><button type="button" id="mpAiGenerate" class="mp-secondary">Gemini tạo nội dung và gợi ý giờ đăng</button></div>
+          <p id="mpAiProgress" class="mp-hint" aria-live="polite">Chọn thư mục phim ở trên và kênh YouTube muốn đăng.</p>
+          <div id="mpAiDrafts" class="mp-ai-preview"></div>
+          <label class="mp-check"><input type="checkbox" id="mpAiRights"> Tôi xác nhận có quyền phân phối video và âm thanh trong chiến dịch.</label>
+          <label class="mp-check"><input type="checkbox" id="mpAiConsent"> Tôi đã xem và chấp thuận từng tiêu đề, mô tả, giờ đăng và kênh YouTube đã chọn.</label>
+          <button id="mpAiApprove" class="mp-main-btn" type="button" disabled>Duyệt và xếp lịch các tập YouTube</button>
+        </section>
       </div>
-      <section class="mp-card mp-queue"><div class="mp-card-head"><h3>Hàng đợi đa nền tảng</h3><span class="mp-tag">Không tác động Facebook</span></div><div id="mpJobs"></div></section>
+      <div class="mp-column">
+        <section class="mp-card mp-attention"><div class="mp-card-head"><h3>YouTube cần kiểm tra · <span id="mpAttentionCount">0</span></h3><button id="mpAttentionRefresh" type="button" class="mp-secondary">↻ Đối chiếu</button></div>
+          <p class="mp-hint">Bài lỗi, đang xử lý, cần đối soát và bài quá giờ của mọi kênh YouTube.</p><div id="mpAttention"></div></section>
+        <section class="mp-card mp-queue"><div class="mp-card-head"><h3>Hàng đợi đa nền tảng</h3><span class="mp-tag">Không tác động Facebook</span></div><div id="mpJobs"></div></section>
+      </div>
     </div>`;
   $("mpYoutubeConnect").onclick=()=>location.href="/api/reels/multi/oauth/youtube/start";
   $("mpTikTokConnect").onclick=()=>location.href="/api/reels/multi/oauth/tiktok/start";
