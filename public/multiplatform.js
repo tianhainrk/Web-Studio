@@ -15,11 +15,15 @@ async function api(path,data){
 async function drive(path){const r=await fetch("/api/reels/drive"+path,{credentials:"same-origin"});
   const x=await r.json().catch(()=>({}));if(!r.ok)throw Error(x.error||"Drive HTTP "+r.status);return x;}
 function renderAccounts(){
-  const root=$("mpAccounts");root.replaceChildren();
+  const root=$("mpAccounts");
+  const keep=new Set([...root.querySelectorAll("input:checked")].map(x=>x.value));
+  const defaultYoutube=accounts.find(x=>x.provider==="youtube"&&x.active)?.id;
+  root.replaceChildren();
   if(!accounts.length)root.append(mk("p","Chưa kết nối kênh YouTube hoặc TikTok.","mp-muted"));
   for(const a of accounts){
     const row=mk("label","","mp-account");
     const check=mk("input");check.type="checkbox";check.value=a.id;check.disabled=!a.active;
+    check.checked=a.active&&(keep.has(a.id)||(!keep.size&&a.id===defaultYoutube));
     check.onchange=()=>{syncPlatformFields();};
     const name=mk("span",(a.provider==="youtube"?"YouTube Shorts · ":"TikTok · ")+a.display_name+
       (a.active?"":" (đã tắt)"));
@@ -40,8 +44,11 @@ function syncPlatformFields(){
   if(tiktok&&!config.tiktokMediaReady)notify("TikTok sẽ upload trực tiếp MP4 từ Google Drive. Nếu dùng URL riêng, cần xác minh tên miền TikTok.");
 }
 function renderSeries(){
-  const select=$("mpSeries");select.replaceChildren(new Option("Chọn phim trên Google Drive",""));
+  const select=$("mpSeries"),previous=select.value;
+  select.replaceChildren(new Option("Chọn phim trên Google Drive",""));
   for(const s of series)select.append(new Option(s.title||s.name,s.id));
+  select.value=series.some(s=>s.id===previous)?previous:"";
+  updateSeriesChoices();
 }
 function renderEpisodes(){
   const select=$("mpEpisode");select.replaceChildren(new Option("Chọn tập phim",""));
@@ -85,7 +92,7 @@ function renderJobs(){
 async function loadJobs(){
   const [data,attention]=await Promise.all([api("/jobs"),api("/jobs/attention")]);
   jobs=data.jobs||[];attentionJobs=attention.jobs||[];
-  renderJobs();renderAttention();
+  renderJobs();renderAttention();renderStudioDashboard();
 }
 async function loadAll(){
   const c=await api("/config");
@@ -108,16 +115,16 @@ async function loadAll(){
     for(const [name,value] of [["Công khai","PUBLIC_TO_EVERYONE"],["Bạn bè","MUTUAL_FOLLOW_FRIENDS"],
       ["Người theo dõi","FOLLOWER_OF_CREATOR"]])$("mpTikPrivacy").append(new Option(name,value));
   }
-  renderAccounts();renderJobs();renderAttention();
+  renderAccounts();updateChannelChoices();renderJobs();renderAttention();renderStudioDashboard();
   if(!c.enabled)notify("Chưa bật MULTIPLATFORM_ENABLED=true trên Vercel. Facebook Reels vẫn hoạt động riêng.",true);
 }
 async function loadSeries(){
-  const r=await drive("/series");series=r.series||[];renderSeries();
+  const r=await drive("/series");series=r.series||[];renderSeries();renderStudioDashboard();
 }
 async function loadEpisodes(){
   const folder=$("mpSeries").value;episodes=[];renderEpisodes();if(!folder)return;
   const data=await drive("/episodes?folder="+encodeURIComponent(folder));episodes=data.episodes||[];renderEpisodes();
-  aiDrafts=[];renderAiDrafts();
+  aiDrafts=[];campaignSlots=[];museContext=null;museContextSignature="";museSkipped=[];renderAiDrafts();
   const nums=episodes.map(x=>Number(x.episode)).filter(Number.isInteger);
   $("mpAiFrom").value=nums[0]||1;$("mpAiTo").value=nums[Math.min(nums.length-1,9)]||1;
 }
@@ -238,7 +245,13 @@ function buildAiSlots(){
   });
 }
 function validateAiDrafts(){
-  if(!aiDrafts.length)return "Chưa có bản nháp AI.";
+  if(!aiDrafts.length)return "Chưa có bản nháp đã nhập.";
+  if(!campaignSlots.length||aiDrafts.length!==campaignSlots.length)
+    return "Cần nhập đủ JSON: "+aiDrafts.length+"/"+campaignSlots.length+" tập.";
+  if(aiDrafts.some(x=>!campaignSlots.some(y=>y.episode===x.episode&&y.fileId===x.fileId)))
+    return "Bản nháp chứa tập không thuộc chiến dịch.";
+  if(museContext&&museContextSignature!==JSON.stringify(buildCurrentMuseContext()))
+    return "Bạn đã thay đổi phim, kênh hoặc lịch; cần xuất lệnh Muse mới.";
   const ordered=aiDrafts.slice().sort((a,b)=>a.episode-b.episode);
   let previous=-Infinity;
   for(const d of ordered){
@@ -257,6 +270,8 @@ function updateAiValidation(){
   const result=validateAiDrafts();
   $("mpAiApprove").disabled=!!result||aiGenerating||!config.enabled;
   $("mpAiProgress").textContent=result||"Đã tạo "+aiDrafts.length+" bản nháp. Bạn có thể chỉnh từng tiêu đề, mô tả hoặc giờ đăng trước khi duyệt.";
+  if($("mpReviewCount"))$("mpReviewCount").textContent=aiDrafts.length+"/"+campaignSlots.length+" tập";
+  if($("mpReviewChannel"))$("mpReviewChannel").textContent=accounts.find(x=>x.id===$("mpWizardChannel").value)?.display_name||"Chưa chọn kênh";
 }
 function renderAiDrafts(){
   const root=$("mpAiDrafts");if(!root)return;
@@ -284,6 +299,7 @@ async function generateYoutubeCampaign(){
   const selected=checkedAccounts().filter(x=>x.provider==="youtube"&&x.active);
   if(!selected.length)throw Error("Tích chọn ít nhất một kênh YouTube đã liên kết");
   const slots=buildAiSlots();
+  campaignSlots=slots.map(x=>({...x}));
   const title=series.find(s=>s.id===$("mpSeries").value)?.title||series.find(s=>s.id===$("mpSeries").value)?.name;
   if(!title)throw Error("Chưa có tên phim");
   aiDrafts=[];aiGenerating=true;renderAiDrafts();$("mpAiGenerate").disabled=true;
@@ -304,13 +320,14 @@ async function generateYoutubeCampaign(){
       }
     }
     aiDrafts=preparedDrafts;
+    museContext=null;museContextSignature="";
   }finally{aiGenerating=false;$("mpAiGenerate").disabled=!config.gemini||!config.enabled;renderAiDrafts();}
 }
 async function approveYoutubeCampaign(){
   const problem=validateAiDrafts();if(problem)throw Error(problem);
   if(!$("mpAiRights").checked||!$("mpAiConsent").checked)
     throw Error("Cần xác nhận quyền phân phối và chấp thuận bản nháp trước khi xếp lịch");
-  const targets=checkedAccounts().filter(x=>x.provider==="youtube"&&x.active);
+  const targets=accounts.filter(x=>x.provider==="youtube"&&x.active&&x.id===$("mpWizardChannel").value);
   if(!targets.length)throw Error("Chưa chọn kênh YouTube để đăng");
   if(!confirm("Duyệt và xếp "+aiDrafts.length+" tập cho "+targets.length+
     " kênh YouTube? Tạo lịch trong Supabase; GitHub Actions worker sẽ xử lý khi được bật."))return;
@@ -335,7 +352,8 @@ async function approveYoutubeCampaign(){
       }
     }
     notify("Đã xếp lịch "+count+" bài YouTube"+(skip.length?" · bỏ qua "+skip.length+" lịch đã có":"")+
-      ". Chưa tự đăng nếu GitHub Actions worker chưa bật.");
+      ". Worker GitHub Actions chỉ đăng khi đã bật và có quyền hợp lệ.");
+    $("mpCampaignDialog").close();setStudioView("campaigns");
   }finally{await loadJobs().catch(()=>{});updateAiValidation();}
 }
 
@@ -629,6 +647,7 @@ export async function initMultiplatform(){
         <button type="button" id="mpJobReconcile" class="mp-secondary">Đối soát YouTube</button>
         <button type="button" id="mpJobRetry" class="mp-secondary">Thử đăng lại an toàn</button></div>
     </form></dialog>`;
+  setupStudioLayout(root);
   $("mpYoutubeConnect").onclick=()=>location.href="/api/reels/multi/oauth/youtube/start";
   $("mpTikTokConnect").onclick=()=>location.href="/api/reels/multi/oauth/tiktok/start";
   $("mpReload").onclick=()=>refreshMultiplatform();
