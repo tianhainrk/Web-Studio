@@ -64,3 +64,102 @@
  #multiplatform .mp-dialog{padding:13px}
  #multiplatform .mp-dialog .mp-actions button{flex:1 1 140px}
 }
+
+/* Reels-style YouTube Shorts studio: channel bar, KPIs, weekly timeline and Muse wizard */
+#multiplatform .mp-header,#multiplatform .mp-dashboard{max-width:1320px;margin-inline:auto}
+#multiplatform .mp-header{background:transparent;border:0;padding:12px 0 20px}
+#multiplatform .mp-header h2{font-size:29px;letter-spacing:-.8px}
+#multiplatform .mp-main-inline{background:#8057df;border:1px solid #9978ed;color:#fff;font-weight:750;padding:10px 15px;white-space:nowrap}
+#multiplatform .mp-pagebar{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:#1a2031;border:1px solid #30364b;border-radius:13px;padding:12px 15px;margin-bottom:14px}
+#multiplatform .mp-pagepick{display:flex;align-items:center;gap:13px;flex:1;min-width:0}
+#multiplatform .mp-pagepick>span{font-size:10px;font-weight:800;color:#a5afc8;letter-spacing:1px;white-space:nowrap}
+#multiplatform .mp-pagepick select{min-width:185px;max-width:410px;font-weight:700}
+#multiplatform .mp-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+#multiplatform .mp-metric{padding:18px;border-radius:14px;border:1px solid #30364b;background:linear-gradient(145deg,#1b2031,#151a28);
+  min-width:0;display:flex;flex-direction:column;gap:7px}
+#multiplatform .mp-metric span{font-size:12px;color:#b4b9cf}
+#multiplatform .mp-metric strong{font-size:31px;line-height:1.1;letter-spacing:-.8px}
+#multiplatform .mp-metric small{font-size:10px;color:#929cb3}
+#multiplatform .mp-nav{display:flex;gap:5px;overflow-x:auto;border-bottom:1px solid #30364b;margin:23px 0 15px}
+#multiplatform .mp-nav button{background:transparent;border:0;border-radius:0;border-bottom:2px solid transparent;
+  padding:11px 17px;color:#a8adc1;white-space:nowrap;font-weight:650}
+#multiplatform .mp-nav button.active{color:#eee8ff;border-color:#a788fc}
+#multiplatform .mp-view{min-height:160px}
+#multiplatform .mp-section-title{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin:23px 0 12px}
+#multiplatform .mp-section-title h3{font-size:17px;margin:0}
+#multiplatform .mp-section-title p{font-size:12px;color:#a6afc5;margin:5px 0}
+#multiplatform .mp-week-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+#multiplatform .mp-week-actions button{min-width:36px;min-height:36px}
+#multiplatform #mpWeekRange{font-size:12px;color:#b7bfd2;white-space:nowrap;min-width:100px;text-align:center;font-variant-numeric:tabular-nums}
+#multiplatform .mp-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:9px}
+#multiplatform .mp-day{min-width:0;min-height:105px;padding:12px;text-align:left;border:1px solid #30354b;
+  background:#151a29;border-radius:12px;color:#dce3f3;display:flex;flex-direction:column;justify-content:space-between;gap:8px;cursor:pointer}
+#multiplatform .mp-day:hover{border-color:#9578db}
+#multiplatform .mp-day strong{color:#d8c5ff;font-size:24px}
+#multiplatform .mp-day span,#multiplatform .mp-day small{font-size:11px;color:#a9b1c5}
+#multiplatform .mp-day.today{background:#211a3b;border-color:#8861df}
+#multiplatform .mp-day.selected{outline:1px solid #b89afa;background:#2a2044;border-color:#b89afa}
+#multiplatform .mp-day-list{display:grid;gap:9px;margin:11px 0 18px}
+#multiplatform .mp-studio-entry{background:#161c2b;border:1px solid #2c3348;border-radius:12px;display:flex;
+  gap:12px;align-items:center;padding:13px;flex-wrap:wrap}
+#multiplatform .mp-entry-time{color:#bcb1e7;font-weight:750;font-size:12px;min-width:106px}
+#multiplatform .mp-entry-main{min-width:170px;flex:1}
+#multiplatform .mp-entry-main strong{display:block;font-size:13px;overflow-wrap:anywhere}
+#multiplatform .mp-entry-main small{display:block;margin-top:5px;overflow-wrap:anywhere}
+#multiplatform .mp-status{background:#293248;color:#d1d9e8;font-size:11px;padding:6px 9px;border-radius:999px}
+#multiplatform .mp-status.published,#multiplatform .mp-status.uploaded_private{background:#173828;color:#94e4b0}
+#multiplatform .mp-status.failed,#multiplatform .mp-status.needs_review{background:#48202c;color:#ffb0bd}
+#multiplatform .mp-empty{border:1px dashed #343b50;background:#141928;border-radius:12px;padding:28px 20px;
+  color:#abb4cb;font-size:12px;text-align:center}
+#multiplatform #mpOverviewView>.mp-attention{margin:14px 0 25px}
+#multiplatform #mpQueueView>.mp-queue{max-height:none}
+
+/* Full-height creation wizard matching Facebook Reels composition flow */
+#multiplatform .mp-campaign-dialog{width:min(960px,calc(100vw - 22px));max-height:94vh;padding:0;
+  background:#111624;color:#f5f3ff;border:1px solid #43405b;border-radius:19px;box-shadow:0 24px 90px #0009}
+#multiplatform .mp-campaign-dialog::backdrop{background:#030611ba;backdrop-filter:blur(3px)}
+#multiplatform .mp-campaign-head{padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  border-bottom:1px solid #2c3248}
+#multiplatform .mp-campaign-head h3{font-size:20px;margin:4px 0 0;letter-spacing:-.4px}
+#multiplatform .mp-wizard-steps{display:flex;gap:8px;padding:14px 23px;border-bottom:1px solid #282f42;flex-wrap:wrap}
+#multiplatform .mp-wizard-steps span{border-radius:8px;padding:7px 10px;font-size:11px;color:#a4aac0}
+#multiplatform .mp-wizard-steps span.active{background:#35254e;color:#ebd8ff;font-weight:750}
+#multiplatform .mp-campaign-body{padding:18px 23px;overflow-y:auto;max-height:calc(94vh - 185px)}
+#multiplatform .mp-campaign-body>.mp-card{box-shadow:none;background:transparent;border:0;padding:0}
+#multiplatform .mp-campaign-body .mp-step h3{font-size:16px;margin:5px 0 15px}
+#multiplatform .mp-campaign-body .mp-step label{display:flex;flex-direction:column;gap:7px;margin:12px 0;color:#c1c8db}
+#multiplatform .mp-campaign-body .mp-step .mp-check{flex-direction:row;align-items:start}
+#multiplatform .mp-campaign-body .mp-step .mp-check input{flex:none}
+#multiplatform .mp-campaign-body textarea{line-height:1.55;resize:vertical}
+#multiplatform #mpMusePrompt{min-height:210px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px}
+#multiplatform #mpMuseReply{min-height:155px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px}
+#multiplatform .mp-muse-import{border:1px solid #363b59;border-radius:13px;background:#151a2a;padding:12px;margin:14px 0}
+#multiplatform .mp-upload-label{border:1px dashed #58517b;border-radius:10px;padding:11px;cursor:pointer}
+#multiplatform .mp-upload-label input{padding:3px 0}
+#multiplatform .mp-review-metrics{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0}
+#multiplatform .mp-review-metrics span{background:#211d35;border:1px solid #4d4268;color:#e0d0fd;
+  font-size:12px;border-radius:10px;padding:9px 12px}
+#multiplatform .mp-campaign-footer{padding:12px 23px;display:flex;justify-content:space-between;align-items:center;gap:10px;
+  border-top:1px solid #2c3248}
+#multiplatform .mp-campaign-body .mp-ai-preview{max-height:50vh;overflow-y:auto}
+@media(max-width:900px){#multiplatform .mp-week{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:670px){
+ #multiplatform .mp-header{align-items:flex-start;flex-direction:column}
+ #multiplatform .mp-header-actions{width:100%;justify-content:space-between}
+ #multiplatform .mp-pagebar{align-items:flex-start;flex-direction:column}
+ #multiplatform .mp-pagepick{align-items:flex-start;flex-direction:column;gap:5px;width:100%}
+ #multiplatform .mp-pagepick select{max-width:none}
+ #multiplatform .mp-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ #multiplatform .mp-metric{padding:12px}#multiplatform .mp-metric strong{font-size:26px}
+ #multiplatform .mp-week{grid-template-columns:repeat(3,minmax(0,1fr))}
+ #multiplatform .mp-week-actions{width:100%;justify-content:space-between}
+ #multiplatform .mp-day{min-height:95px}
+ #multiplatform .mp-entry-time{width:100%}
+ #multiplatform .mp-studio-entry>button{flex:1}
+ #multiplatform .mp-campaign-head,#multiplatform .mp-campaign-body,#multiplatform .mp-campaign-footer{padding:13px 15px}
+ #multiplatform .mp-wizard-steps{padding:10px 12px;gap:3px}
+ #multiplatform .mp-wizard-steps span{padding:7px 6px}
+ #multiplatform .mp-campaign-body{max-height:calc(94vh - 179px)}
+ #multiplatform .mp-review-metrics{flex-direction:column}
+}

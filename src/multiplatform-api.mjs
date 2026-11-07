@@ -1,11 +1,12 @@
-import {oauthState,verifyOauthState,encryptToken,decryptToken,db,audit,fetchJSON,getGoogleAccessToken,requiredConfig,validId} from "./reels-core.mjs";
+import {oauthState,verifyOauthState,encryptToken,decryptToken,db,audit,fetchJSON,getGoogleAccessToken,driveEpisodes,requiredConfig,validId} from "./reels-core.mjs";
 import {cleanPostRequest,isTikTokApprovedPrivate} from "./multiplatform-core.mjs";
+import {validateYouTubeMuseManifest,youtubeMusePrompt,parseYoutubeMuseReply} from "./multiplatform-muse.mjs";
 import {prepareYouTubeAiRequest,youtubeAiPrompt,youtubeAiRequest,normalizeYouTubeAiDraft,safeYoutubeRetry,cleanYoutubeUpdate} from "./multiplatform-planner.mjs";
 const GRAPH="https://open.tiktokapis.com";
 const json=(res,code,value)=>{res.writeHead(code,{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"});res.end(JSON.stringify(value));};
 const fail=(res,code,msg)=>json(res,code,{error:String(msg).slice(0,240)});
 const redirect=(res,url)=>{res.writeHead(302,{"Location":url,"Cache-Control":"no-store"});res.end();};
-async function input(req){let text="";for await(const x of req){text+=x;if(text.length>16000)throw Error("Yêu cầu quá lớn");}return JSON.parse(text||"{}");}
+async function input(req,maxLength=16000){let text="";for await(const x of req){text+=x;if(text.length>maxLength)throw Error("Yêu cầu quá lớn");}return JSON.parse(text||"{}");}
 function origin(req){
   const p=String(req.headers["x-forwarded-proto"]||"https").split(",")[0];
   const host=String(req.headers["x-forwarded-host"]||req.headers.host||"").split(",")[0];
@@ -122,6 +123,36 @@ export async function multiRoute(req,res,path){
     if(path==="/jobs"&&method==="GET"){
       const jobs=await db("multi_publish_jobs?select=id,account_id,provider,folder_id,file_id,filename,title,caption,scheduled_at,privacy,status,remote_id,remote_status,error,updated_at,created_at&order=scheduled_at.desc&limit=500");
       return json(res,200,{jobs});
+    }
+    if(path==="/muse/youtube/prepare"||path==="/muse/youtube/parse"){
+      if(method!=="POST")return fail(res,405,"Phải dùng POST");
+      const b=await input(req,path.endsWith("/parse")?270000:18000);
+      const accountId=String(b?.accountId||"");
+      if(!/^[0-9a-f-]{36}$/i.test(accountId))return fail(res,400,"Chưa chọn kênh YouTube hợp lệ");
+      const account=(await db("multi_publish_accounts?id=eq."+accountId+
+        "&provider=eq.youtube&active=eq.true&select=id,display_name&limit=1"))?.[0];
+      if(!account)return fail(res,404,"Kênh YouTube chưa kết nối hoặc đã tắt");
+      let manifest;
+      try{manifest=validateYouTubeMuseManifest({...b,accountName:account.display_name});}
+      catch(err){return fail(res,400,err.message);}
+      const accessible=await driveEpisodes(await getGoogleAccessToken(),manifest.folderId);
+      const byEpisode=new Map(accessible.map(x=>[Number(x.episode),x]));
+      for(const entry of manifest.items){
+        const actual=byEpisode.get(entry.episode);
+        if(!actual||actual.id!==entry.fileId||actual.name!==entry.filename||actual.mimeType!=="video/mp4"||
+          Number(actual.size)<1||Number(actual.size)>512*1024*1024)
+          return fail(res,400,"Tập "+entry.episode+" không còn khớp file MP4 trong Drive");
+      }
+      if(path==="/muse/youtube/prepare"){
+        await audit("youtube_muse_prompt_prepared",{accountId,folderId:manifest.folderId,episodes:manifest.items.length});
+        return json(res,200,{prompt:youtubeMusePrompt(manifest),count:manifest.items.length,source:"connected_muse_drive",
+          note:"Chỉ là lệnh cho Muse; chưa có bài nào được tạo hoặc đăng"});
+      }
+      let parsed;
+      try{parsed=parseYoutubeMuseReply(String(b.reply||""),manifest);}catch(err){return fail(res,400,err.message);}
+      await audit("youtube_muse_json_imported",{accountId,episodes:parsed.plan.map(x=>x.episode),
+        skipped:parsed.skipped.length});
+      return json(res,200,{...parsed,status:"draft",source:"connected_muse_drive"});
     }
     if(path==="/ai/youtube/plan"&&method==="POST"){
       if(!process.env.GEMINI_API_KEY)return fail(res,503,"Chưa cấu hình GEMINI_API_KEY trên Vercel");
