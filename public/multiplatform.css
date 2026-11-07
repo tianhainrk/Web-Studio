@@ -33,3 +33,34 @@
 #multiplatform a{color:#c5aaff}
 @media(max-width:880px){#multiplatform .mp-layout{grid-template-columns:1fr}#multiplatform .mp-queue{max-height:none}}
 @media(max-width:550px){#multiplatform .mp-two{grid-template-columns:1fr;gap:0}#multiplatform .mp-card{padding:14px}#multiplatform .mp-header h2{font-size:22px}#multiplatform .mp-header-actions{width:100%;justify-content:space-between}}
+
+/* YouTube Gemini drafts, explicit review and safe recovery. */
+#multiplatform .mp-ai-card .mp-hint{line-height:1.65}
+#multiplatform .mp-ai-card .mp-actions button{flex:1;min-height:40px}
+#multiplatform .mp-ai-preview{display:grid;gap:10px;max-height:690px;overflow-y:auto;margin:14px 0}
+#multiplatform .mp-draft{border:1px solid #42465c;border-radius:13px;background:#101522;padding:13px}
+#multiplatform .mp-draft strong{display:block;margin-bottom:9px;color:#d9c7ff}
+#multiplatform .mp-draft label{font-size:12px;margin:9px 0;gap:5px}
+#multiplatform .mp-draft textarea{resize:vertical;line-height:1.55}
+#multiplatform .mp-attention{border-color:#655077;background:linear-gradient(145deg,#201a30,#141827)}
+#multiplatform .mp-attention .mp-job{align-items:flex-start;flex-wrap:wrap}
+#multiplatform .mp-attention .mp-job-main{flex:1 1 200px}
+#multiplatform .mp-attention .mp-job button{flex:none}
+#multiplatform .mp-job{flex-wrap:wrap}
+#multiplatform .mp-job .mp-job-main{flex:1 1 190px}
+#multiplatform .mp-dialog{width:min(640px,calc(100vw - 24px));max-height:90vh;overflow:auto;
+  background:#12182a;border:1px solid #555272;border-radius:16px;padding:20px;color:#f5f1ff;
+  box-shadow:0 24px 80px #0009}
+#multiplatform .mp-dialog::backdrop{background:#050614b9}
+#multiplatform .mp-dialog-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+#multiplatform .mp-dialog-head h3{font-size:19px;margin:0}
+#multiplatform .mp-dialog form>label{display:flex;flex-direction:column;gap:7px;margin:12px 0;font-size:12px}
+#multiplatform .mp-dialog input,#multiplatform .mp-dialog textarea{width:100%;background:#0f1322;color:#f1effb;border:1px solid #394057;min-width:0}
+#multiplatform .mp-dialog textarea{resize:vertical}
+@media(max-width:650px){
+ #multiplatform .mp-ai-preview{max-height:none}
+ #multiplatform .mp-attention .mp-card-head{align-items:flex-start}
+ #multiplatform .mp-attention .mp-job button{width:100%}
+ #multiplatform .mp-dialog{padding:13px}
+ #multiplatform .mp-dialog .mp-actions button{flex:1 1 140px}
+}

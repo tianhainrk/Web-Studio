@@ -37,3 +37,23 @@ Sources:
 - https://developers.tiktok.com/docs/en/content-posting-api-reference-direct-post
 - https://developers.tiktok.com/docs/en/content-posting-api-media-transfer-guide
 - https://developers.tiktok.com/docs/en/content-sharing-guidelines
+
+## YouTube AI multi-episode campaigns (2026-11-07)
+
+The **YouTube Shorts · TikTok** tab includes a separate Gemini campaign editor. It does not affect Facebook Reels or TikTok workflows.
+
+1. Link the YouTube channel using Google OAuth and verify the studio Google Drive connection can read `PineDrama-Library`.
+2. Select a folder and choose an episode range (1–40 existing `EPxxx.mp4` files). Select one or more linked **YouTube** accounts above the editor.
+3. Choose the first publishing day/time (Vietnam UTC+7), number of episodes per day, and interval (at least 15 minutes). Gemini creates YouTube titles, descriptions and suggests safe times, processing at most 8 episodes per request.
+4. Inspect every draft and edit title, description, and scheduled time before approval. Gemini drafts are **metadata-only**: the AI sees folder title, episode number, and schedule, but **not the underlying video frames or transcript**. It must not invent specific scenes or plot facts.
+5. Confirm content distribution rights and explicit posting consent. Use **Duyệt và xếp lịch** to create one independently auditable job per episode per selected YouTube account. Duplicate queued combinations are skipped. If an uncertain response occurs, inspect the job list before retrying.
+6. The **YouTube cần kiểm tra** panel displays failed, processing, needs_review and overdue jobs across connected accounts. Queued jobs can be edited; a remote video ID can be manually reconciled; the retry option is offered only for a failed *pre-upload* job without a remote video ID.
+
+To run actual scheduled uploads, configure GitHub Actions secrets as documented above and explicitly enable repository variable `MULTIPLATFORM_PUBLISH_ENABLED=true`. A same-named Vercel variable only changes the UI indicator and **does not start the GitHub worker**. The worker's five-minute schedule is best-effort; it does not publish at the exact second. No upload occurs when the worker remains disabled.
+
+YouTube classifies eligible **vertical or square** videos **at most 3 minutes long** as Shorts; uploading an EPxxx MP4 does not guarantee it becomes a Short. This flow does not transcode or validate dimensions/duration, and the user must verify every video's rights, including music, subtitles and footage. Google API scope approval and limits still apply. Per YouTube Data API revision history (2026-11-02), unverified projects are no longer restricted to private-only uploads, but individual channel/account permissions can still constrain visibility.
+
+References:
+- https://developers.google.com/youtube/data/reference/rest/v3/videos/insert
+- https://developers.google.com/youtube/data/revision_history
+- https://support.google.com/youtube/answer/15424877
