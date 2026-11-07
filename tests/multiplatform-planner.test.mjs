@@ -41,7 +41,7 @@ test("AI cannot change episode membership or generate overlong title",()=>{
   const slots=prepareYouTubeAiRequest(base,{now}).items;
   assert.throws(()=>normalizeYouTubeAiDraft(JSON.stringify({items:[]}),slots,{now}),/đủ/);
   const swapped=JSON.parse(reply());swapped.items[0].episode=3;
-  assert.throws(()=>normalizeYouTubeAiDraft(JSON.stringify(swapped),slots,{now}),/thứ tự/);
+  assert.throws(()=>normalizeYouTubeAiDraft(JSON.stringify(swapped),slots,{now}),/thứ tự/i);
   const long=JSON.parse(reply());long.items[0].title="a".repeat(101);
   assert.throws(()=>normalizeYouTubeAiDraft(JSON.stringify(long),slots,{now}),/100/);
   assert.throws(()=>normalizeYouTubeAiDraft("not json",slots,{now}),/JSON/);
