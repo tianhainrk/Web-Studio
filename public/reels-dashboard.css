@@ -241,3 +241,26 @@ body:has(#reels:not(.hidden)) main{max-width:1440px}
 #reels .rd-analytics-disclaimer{font-size:11px;color:#aea5c8;margin:15px 0 0;line-height:1.6}
 #reels .rd-analytics-modal-stats a{font-size:12px;color:#ddc0ff}
 @media(max-width:680px){#reels .rd-analytics-dialog{padding:17px}#reels .rd-analytics-modal-stat b{font-size:19px}}
+
+/* Global Meta attention queue: readable across Fanpages and screen sizes. */
+#reels .rd-attention{margin:18px 0 22px;padding:16px;border:1px solid #514064;border-radius:16px;background:linear-gradient(140deg,#211b30,#151b2a)}
+#reels .rd-attention .rd-section-title{margin:0 0 12px}
+#reels .rd-attention .rd-section-title p{max-width:760px;line-height:1.55}
+#reels .rd-attention-hint{font-size:12px;color:#b6bbd3;margin:7px 0 14px;line-height:1.6}
+#reels .rd-attention-entry{background:#1a2032;border-color:#3b3f5b;flex-wrap:wrap}
+#reels .rd-attention-entry .rd-entry-main{flex-basis:230px}
+#reels .rd-attention-entry .rd-entry-main strong{white-space:normal;overflow-wrap:anywhere}
+#reels .rd-attention-entry .rd-attention-caption{white-space:normal;overflow:visible;line-height:1.5;max-width:100%;overflow-wrap:anywhere}
+#reels .rd-attention-entry .rd-attention-page{color:#c9b2ff;font-weight:650;white-space:normal}
+#reels .rd-attention-entry .rd-attention-error{color:#ffbac5;white-space:normal;overflow-wrap:anywhere}
+#reels .rd-attention-entry .rd-attention-meta{color:#a8b9d5}
+#reels .rd-attention-entry button{white-space:nowrap}
+#reels .rd-entry .rd-entry-status.needs_review{color:#ffcf9b;background:#47371f}
+@media(max-width:670px){
+  #reels .rd-attention{padding:12px}
+  #reels .rd-attention .rd-section-title{align-items:flex-start;flex-wrap:wrap}
+  #reels .rd-attention .rd-section-title button{width:100%}
+  #reels .rd-attention-entry .rd-entry-date{width:100%;min-width:0}
+  #reels .rd-attention-entry .rd-entry-status{margin-left:0}
+  #reels .rd-attention-entry button{flex:1;min-height:38px}
+}
