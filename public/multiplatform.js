@@ -1,4 +1,5 @@
-let ready=false,accounts=[],series=[],episodes=[],jobs=[],config={};
+let ready=false,accounts=[],series=[],episodes=[],jobs=[],attentionJobs=[],config={};
+let aiDrafts=[],aiGenerating=false,editingYouTubeJob=null;
 const $=id=>document.getElementById(id);
 const mk=(tag,content="",cls="")=>{const x=document.createElement(tag);x.textContent=content;if(cls)x.className=cls;return x;};
 function notify(msg,isError=false){const n=$("mpNotice");n.textContent=msg;n.classList.toggle("error",isError);}
@@ -48,7 +49,7 @@ function renderJobs(){
   const root=$("mpJobs");root.replaceChildren();
   if(!jobs.length){root.append(mk("p","Chưa có tác vụ đăng YouTube/TikTok.","mp-muted"));return;}
   const byId=new Map(accounts.map(a=>[a.id,a]));
-  for(const j of jobs.slice(0,60)){
+  for(const j of jobs.slice(0,80)){
     const row=mk("article","","mp-job");
     const left=mk("div","","mp-job-main");
     const a=byId.get(j.account_id),provider=j.provider==="youtube"?"YouTube Shorts":"TikTok";
@@ -65,6 +66,10 @@ function renderJobs(){
       }
     }
     row.append(left);
+    if(j.provider==="youtube"){
+      const detail=mk("button","Chi tiết / Xử lý","mp-secondary");
+      detail.onclick=()=>openYoutubeJob(j);row.append(detail);
+    }
     if(j.status==="queued"){
       const b=mk("button","Hủy lịch","mp-secondary");b.onclick=async()=>{
         if(!confirm("Hủy tác vụ này khi video chưa upload?"))return;
@@ -75,7 +80,11 @@ function renderJobs(){
     root.append(row);
   }
 }
-async function loadJobs(){const data=await api("/jobs");jobs=data.jobs||[];renderJobs();}
+async function loadJobs(){
+  const [data,attention]=await Promise.all([api("/jobs"),api("/jobs/attention")]);
+  jobs=data.jobs||[];attentionJobs=attention.jobs||[];
+  renderJobs();renderAttention();
+}
 async function loadAll(){
   const c=await api("/config");
   config=c;
@@ -84,10 +93,11 @@ async function loadAll(){
   const [a,j]=await Promise.all([api("/accounts"),api("/jobs")]);
   config=c;accounts=a.accounts||[];jobs=j.jobs||[];
   $("mpConnected").textContent=accounts.length+" kênh đã liên kết";
-  $("mpWorkerState").textContent=config.workerEnabled?"Worker đã bật":"Worker đang tắt (an toàn)";
+  $("mpWorkerState").textContent=config.workerEnabled?"Cấu hình worker trên Vercel đã bật":"Cần bật GitHub Actions worker để tự đăng";
   $("mpYoutubeConnect").disabled=!c.youtube;
   $("mpTikTokConnect").disabled=!c.tiktok;
   $("mpCreate").disabled=!c.enabled;
+  $("mpAiGenerate").disabled=!c.enabled||!c.gemini;
   $("mpPublicWarning").textContent=c.tiktokPublicApproved?
     "TikTok đã được đánh dấu hoàn tất audit; quyền công khai vẫn phụ thuộc từng tài khoản.":
     "TikTok chưa audit: chỉ cho phép SELF_ONLY (riêng tư).";
@@ -96,7 +106,7 @@ async function loadAll(){
     for(const [name,value] of [["Công khai","PUBLIC_TO_EVERYONE"],["Bạn bè","MUTUAL_FOLLOW_FRIENDS"],
       ["Người theo dõi","FOLLOWER_OF_CREATOR"]])$("mpTikPrivacy").append(new Option(name,value));
   }
-  renderAccounts();renderJobs();
+  renderAccounts();renderJobs();renderAttention();
   if(!c.enabled)notify("Chưa bật MULTIPLATFORM_ENABLED=true trên Vercel. Facebook Reels vẫn hoạt động riêng.",true);
 }
 async function loadSeries(){
@@ -105,6 +115,9 @@ async function loadSeries(){
 async function loadEpisodes(){
   const folder=$("mpSeries").value;episodes=[];renderEpisodes();if(!folder)return;
   const data=await drive("/episodes?folder="+encodeURIComponent(folder));episodes=data.episodes||[];renderEpisodes();
+  aiDrafts=[];renderAiDrafts();
+  const nums=episodes.map(x=>Number(x.episode)).filter(Number.isInteger);
+  $("mpAiFrom").value=nums[0]||1;$("mpAiTo").value=nums[Math.min(nums.length-1,9)]||1;
 }
 async function schedule(e){
   e.preventDefault();
