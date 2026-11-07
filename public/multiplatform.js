@@ -374,22 +374,48 @@ export async function initMultiplatform(){
           <button class="mp-main-btn" id="mpCreate" type="submit">+ Xếp lịch các kênh đã chọn</button>
         </form>
 
-        <section class="mp-card mp-ai-card" aria-labelledby="mpAiTitle">
-          <div class="mp-card-head"><h3 id="mpAiTitle">4. AI chiến dịch YouTube Shorts</h3><span class="mp-tag">Gemini · duyệt trước</span></div>
-          <p class="mp-hint">Gemini dựa vào tên phim và số tập để đề xuất tiêu đề, mô tả và giờ đăng. AI không xem nội dung video ở chế độ này. Bạn được sửa từng bài trước khi duyệt.</p>
-          <div class="mp-two"><label>Tập bắt đầu<input id="mpAiFrom" type="number" min="1" max="5000" value="1"></label>
-            <label>Tập kết thúc<input id="mpAiTo" type="number" min="1" max="5000" value="10"></label></div>
-          <div class="mp-two"><label>Ngày bắt đầu (Việt Nam)<input id="mpAiStartDate" type="date"></label>
-            <label>Giờ bài đầu (Việt Nam)<input id="mpAiStartTime" type="time" value="09:00"></label></div>
-          <div class="mp-two"><label>Bài mỗi ngày<select id="mpAiPerDay"><option value="2">2 bài</option><option value="3" selected>3 bài</option><option value="5">5 bài</option><option value="8">8 bài</option></select></label>
-            <label>Khoảng cách (phút)<input id="mpAiInterval" type="number" min="15" max="600" value="120"></label></div>
-          <label>Phong cách tiêu đề và mô tả<textarea id="mpAiInstructions" rows="2" maxlength="800" placeholder="Tự nhiên, gợi tò mò, tránh spoil, tối đa 3 hashtag"></textarea></label>
-          <div class="mp-actions"><button type="button" id="mpAiGenerate" class="mp-secondary">Gemini tạo nội dung và gợi ý giờ đăng</button></div>
-          <p id="mpAiProgress" class="mp-hint" aria-live="polite">Chọn thư mục phim ở trên và kênh YouTube muốn đăng.</p>
-          <div id="mpAiDrafts" class="mp-ai-preview"></div>
-          <label class="mp-check"><input type="checkbox" id="mpAiRights"> Tôi xác nhận có quyền phân phối video và âm thanh trong chiến dịch.</label>
-          <label class="mp-check"><input type="checkbox" id="mpAiConsent"> Tôi đã xem và chấp thuận từng tiêu đề, mô tả, giờ đăng và kênh YouTube đã chọn.</label>
-          <button id="mpAiApprove" class="mp-main-btn" type="button" disabled>Duyệt và xếp lịch các tập YouTube</button>
+        <section class="mp-card mp-ai-card" id="mpAiCard" aria-labelledby="mpAiTitle">
+          <p id="mpWizardHint" class="mp-hint">Tất cả lịch chỉ được tạo sau khi bạn kiểm tra nội dung và nhấn duyệt.</p>
+          <section id="mpWizardStep1" class="mp-step">
+            <h3>1. Chọn kênh, phim và lịch cơ sở</h3>
+            <div class="mp-two">
+              <label>Kênh YouTube<select id="mpWizardChannel" aria-label="Kênh YouTube lập chiến dịch"></select></label>
+              <label>Phim từ Google Drive<select id="mpWizardSeries" aria-label="Phim trên Google Drive"></select></label>
+            </div>
+            <div class="mp-two"><label>Tập bắt đầu<input id="mpAiFrom" type="number" min="1" max="5000" value="1"></label>
+              <label>Tập kết thúc<input id="mpAiTo" type="number" min="1" max="5000" value="10"></label></div>
+            <div class="mp-two"><label>Ngày bắt đầu (giờ Việt Nam)<input id="mpAiStartDate" type="date"></label>
+              <label>Giờ bài đầu (giờ Việt Nam)<input id="mpAiStartTime" type="time" value="09:00"></label></div>
+            <div class="mp-two"><label>Số bài mỗi ngày<select id="mpAiPerDay"><option value="2">2 bài</option><option value="3" selected>3 bài</option><option value="5">5 bài</option><option value="8">8 bài</option></select></label>
+              <label>Khoảng cách giữa các bài (phút)<input id="mpAiInterval" type="number" min="15" max="600" value="120"></label></div>
+            <label>Yêu cầu văn phong cho Muse<textarea id="mpAiInstructions" rows="3" maxlength="800" placeholder="Gợi tò mò, xem video thật, không spoil, 1–3 hashtag"></textarea></label>
+            <div class="mp-actions"><button id="mpMusePrepare" type="button" class="mp-main-btn">Tiếp tục · Xuất lệnh Muse</button></div>
+          </section>
+          <section id="mpWizardStep2" class="mp-step hidden">
+            <h3>2. Xuất lệnh Muse &amp; nhập JSON</h3>
+            <p class="mp-hint">Dán lệnh vào Muse đã kết nối Google Drive. Muse xử lý từng tập, xuất JSON (có thể chia thành nhiều tệp). Không cần chia sẻ video công khai.</p>
+            <div class="mp-actions"><button id="mpMuseCopy" type="button" class="mp-secondary">Sao chép lệnh Muse</button>
+              <button id="mpMuseDownload" type="button" class="mp-secondary">Tải lệnh .txt</button></div>
+            <label>Lệnh Muse đã tạo<textarea id="mpMusePrompt" readonly rows="10" spellcheck="false"></textarea></label>
+            <div class="mp-muse-import">
+              <label class="mp-upload-label">Chọn file JSON Muse trả về<input id="mpMuseJsonFile" type="file" accept=".json,application/json,text/plain"></label>
+              <label>Hoặc dán JSON vào đây<textarea id="mpMuseReply" rows="7" spellcheck="false" placeholder='{"items":[{"episode":1,"title":"...","description":"...","scheduledAt":"2026-11-10T02:00:00Z"}]}'></textarea></label>
+              <button type="button" id="mpMuseImport" class="mp-main-btn">Nhập và kiểm tra JSON</button>
+            </div>
+            <p id="mpMuseStatus" class="mp-hint" aria-live="polite">Chưa nhập kết quả Muse.</p>
+            <div class="mp-actions"><button id="mpWizardReview" type="button" class="mp-secondary">Xem và chỉnh bản nháp</button>
+              <button id="mpAiGenerate" type="button" class="mp-secondary">Hoặc dùng Gemini (metadata)</button></div>
+            <p id="mpAiProgress" class="mp-hint" aria-live="polite">Gemini chỉ sử dụng metadata, không xem trực tiếp MP4.</p>
+          </section>
+          <section id="mpWizardStep3" class="mp-step hidden">
+            <h3>3. Xem, chỉnh sửa và duyệt lịch đăng</h3>
+            <p class="mp-hint">Chỉnh tiêu đề, mô tả và thời gian cho từng tập. Bài chưa có JSON hợp lệ sẽ không được duyệt.</p>
+            <div class="mp-review-metrics"><span id="mpReviewCount">0/0 tập</span><span id="mpReviewChannel">Chưa chọn kênh</span></div>
+            <div id="mpAiDrafts" class="mp-ai-preview"></div>
+            <label class="mp-check"><input type="checkbox" id="mpAiRights"> Tôi xác nhận có quyền phân phối tất cả video, âm thanh và nội dung của chiến dịch.</label>
+            <label class="mp-check"><input type="checkbox" id="mpAiConsent"> Tôi đã kiểm tra và chấp thuận từng tiêu đề, mô tả, giờ đăng và kênh YouTube.</label>
+            <button id="mpAiApprove" class="mp-main-btn" type="button" disabled>Duyệt và xếp lịch YouTube</button>
+          </section>
         </section>
       </div>
       <div class="mp-column">
