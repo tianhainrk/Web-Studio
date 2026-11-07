@@ -205,14 +205,34 @@ export async function initMultiplatform(){
           <p class="mp-hint">Bài lỗi, đang xử lý, cần đối soát và bài quá giờ của mọi kênh YouTube.</p><div id="mpAttention"></div></section>
         <section class="mp-card mp-queue"><div class="mp-card-head"><h3>Hàng đợi đa nền tảng</h3><span class="mp-tag">Không tác động Facebook</span></div><div id="mpJobs"></div></section>
       </div>
-    </div>`;
+    </div>
+    <dialog id="mpJobDialog" class="mp-dialog"><form method="dialog"><div class="mp-dialog-head">
+      <h3 id="mpJobDetailTitle">Chi tiết YouTube</h3>
+      <button type="button" id="mpJobClose" class="mp-secondary">Đóng</button></div>
+      <p id="mpJobDetailInfo" class="mp-hint"></p>
+      <label>Tiêu đề<input id="mpJobEditTitle" maxlength="100"></label>
+      <label>Mô tả<textarea id="mpJobEditCaption" maxlength="2200" rows="5"></textarea></label>
+      <label>Giờ đăng (Việt Nam)<input type="datetime-local" id="mpJobEditTime"></label>
+      <p class="mp-hint" id="mpJobDetailStatus"></p>
+      <div class="mp-actions"><button type="button" id="mpJobSave" class="mp-secondary">Lưu bài chưa đăng</button>
+        <button type="button" id="mpJobReconcile" class="mp-secondary">Đối soát YouTube</button>
+        <button type="button" id="mpJobRetry" class="mp-secondary">Thử đăng lại an toàn</button></div>
+    </form></dialog>`;
   $("mpYoutubeConnect").onclick=()=>location.href="/api/reels/multi/oauth/youtube/start";
   $("mpTikTokConnect").onclick=()=>location.href="/api/reels/multi/oauth/tiktok/start";
   $("mpReload").onclick=()=>refreshMultiplatform();
+  $("mpAttentionRefresh").onclick=()=>loadJobs().catch(e=>notify(e.message,true));
+  $("mpAiGenerate").onclick=()=>generateYoutubeCampaign().catch(e=>{notify(e.message,true);$("mpAiProgress").textContent="Lỗi: "+e.message;});
+  $("mpAiApprove").onclick=()=>approveYoutubeCampaign().catch(e=>notify(e.message,true));
+  $("mpJobClose").onclick=()=>$("mpJobDialog").close();
+  $("mpJobSave").onclick=()=>updateYoutubeJob().catch(e=>notify(e.message,true));
+  $("mpJobReconcile").onclick=()=>reconcileYoutubeJob().catch(e=>notify(e.message,true));
+  $("mpJobRetry").onclick=()=>retryYoutubeJob().catch(e=>notify(e.message,true));
   $("mpSeries").onchange=()=>loadEpisodes().catch(e=>notify(e.message,true));
   $("mpForm").onsubmit=e=>schedule(e).catch(err=>notify(err.message,true));
   const d=new Date(Date.now()+86400000+7*3600000);
   $("mpScheduled").value=d.toISOString().slice(0,10)+"T12:00";
+  $("mpAiStartDate").value=d.toISOString().slice(0,10);
   await refreshMultiplatform();
 }
 export async function refreshMultiplatform(){
