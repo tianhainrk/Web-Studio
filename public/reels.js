@@ -405,11 +405,17 @@ function renderAttention(){
   for(const job of attentionJobs)root.append(jobEntry(job,{global:true}));
 }
 async function refreshAttention(){
-  const result=await api("/jobs/attention");
-  attentionJobs=result.jobs||[];
-  attentionCheckedAt=result.checkedAt||"";
-  attentionPartial=!!result.partial;
-  renderAttention();
+  try{
+    const result=await api("/jobs/attention");
+    attentionJobs=result.jobs||[];
+    attentionCheckedAt=result.checkedAt||"";
+    attentionPartial=!!result.partial;
+    renderAttention();
+  }catch(err){
+    $("rdAttentionInfo").textContent="Không thể tải bài cần kiểm tra: "+(err.message||String(err))+". Không coi số 0 là kết quả xác nhận.";
+    $("rdFailed").textContent="—";
+    throw err;
+  }
 }
 function listJobs(root,items,empty){
   root.replaceChildren();
