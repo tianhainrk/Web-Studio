@@ -1,5 +1,7 @@
 let ready=false,accounts=[],series=[],episodes=[],jobs=[],attentionJobs=[],config={};
 let aiDrafts=[],aiGenerating=false,editingYouTubeJob=null;
+let studioView="overview",studioWeekOffset=0,studioSelectedDay="",campaignSlots=[],museContext=null,museContextSignature="",museSkipped=[];
+let wizardStep=1;
 const $=id=>document.getElementById(id);
 const mk=(tag,content="",cls="")=>{const x=document.createElement(tag);x.textContent=content;if(cls)x.className=cls;return x;};
 function notify(msg,isError=false){const n=$("mpNotice");n.textContent=msg;n.classList.toggle("error",isError);}
@@ -335,6 +337,197 @@ async function approveYoutubeCampaign(){
     notify("Đã xếp lịch "+count+" bài YouTube"+(skip.length?" · bỏ qua "+skip.length+" lịch đã có":"")+
       ". Chưa tự đăng nếu GitHub Actions worker chưa bật.");
   }finally{await loadJobs().catch(()=>{});updateAiValidation();}
+}
+
+
+const vnDay=iso=>new Date(Date.parse(iso)+7*3600000).toISOString().slice(0,10);
+const vnToday=()=>vnDay(new Date().toISOString());
+const showTime=iso=>new Date(iso).toLocaleString("vi-VN",{timeZone:"Asia/Ho_Chi_Minh",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+function setupStudioLayout(root){
+  const header=root.querySelector(".mp-header");
+  header.querySelector("h2").textContent="YouTube Shorts";
+  header.querySelector("p").textContent="Quản lý kênh, lịch đăng, bản nháp Muse và chiến dịch tại một nơi.";
+  const actions=header.querySelector(".mp-header-actions");
+  const add=mk("button","+ Chiến dịch","mp-main-inline");add.id="mpOpenCampaign";add.type="button";
+  const connect=mk("button","⚙ Kết nối kênh","mp-secondary");connect.id="mpOpenChannels";connect.type="button";
+  actions.append(connect,add);
+  const shell=mk("div","","mp-dashboard");
+  shell.innerHTML=[
+    '<div class="mp-pagebar"><div class="mp-pagepick"><span>KÊNH YOUTUBE ĐANG XEM</span><select id="mpChannelFilter" aria-label="Chọn kênh YouTube"></select></div><span id="mpChannelState" class="mp-hint">Chọn kênh để xem lịch</span></div>',
+    '<div class="mp-metrics"><div class="mp-metric"><span>Lịch hôm nay</span><strong id="mpStatToday">0</strong><small>Giờ Việt Nam</small></div>',
+    '<div class="mp-metric"><span>Đã đăng</span><strong id="mpStatPublished">0</strong><small>Tất cả bài đã xác nhận</small></div>',
+    '<div class="mp-metric"><span>Đang chờ</span><strong id="mpStatQueued">0</strong><small>Công việc chưa xử lý</small></div>',
+    '<div class="mp-metric"><span>Cần kiểm tra</span><strong id="mpStatAttention">0</strong><small>Lỗi, đang xử lý, quá hạn</small></div></div>',
+    '<nav class="mp-nav" aria-label="Quản lý Shorts"><button type="button" data-mp-view="overview" class="active">Tổng quan</button>',
+    '<button type="button" data-mp-view="campaigns">Chiến dịch</button><button type="button" data-mp-view="queue">Hàng đợi</button>',
+    '<button type="button" data-mp-view="channels">Kênh đã kết nối</button><button type="button" data-mp-view="manual">Đăng lẻ / TikTok</button></nav>',
+    '<section id="mpOverviewView" class="mp-view">',
+    '<div class="mp-section-title"><div><h3>Lịch đăng theo ngày</h3><p>Nhấn vào một ngày để xem video theo đúng giờ Việt Nam</p></div>',
+    '<div class="mp-week-actions"><button type="button" id="mpPrevWeek" class="mp-secondary" aria-label="Tuần trước">‹</button>',
+    '<button type="button" id="mpThisWeek" class="mp-secondary">Hôm nay</button><span id="mpWeekRange"></span>',
+    '<button type="button" id="mpNextWeek" class="mp-secondary" aria-label="Tuần sau">›</button></div></div>',
+    '<div id="mpWeek" class="mp-week"></div><p class="mp-hint">Dùng ‹ › để xem các tuần khác. Mọi bài đều có thể mở Chi tiết.</p>',
+    '<section id="mpDayDetail" class="mp-card hidden"><div class="mp-card-head"><h3 id="mpDayTitle">Lịch đăng</h3>',
+    '<button id="mpCloseDay" type="button" class="mp-secondary">Đóng</button></div><div id="mpDayJobs" class="mp-day-list"></div></section>',
+    '<div class="mp-section-title"><div><h3>Bài đăng sắp tới</h3><p>Hiển thị kênh đang chọn và tập cần theo dõi</p></div></div>',
+    '<div id="mpUpcoming" class="mp-day-list"></div></section>',
+    '<section id="mpCampaignsView" class="mp-view hidden"><div class="mp-section-title"><div><h3>Chiến dịch theo phim</h3>',
+    '<p>Nhóm các bài đã xếp lịch theo thư mục Drive của kênh đang chọn</p></div>',
+    '<button id="mpCampaignNew" class="mp-main-inline" type="button">+ Chiến dịch Muse</button></div>',
+    '<div id="mpCampaignList" class="mp-day-list"></div></section>',
+    '<section id="mpQueueView" class="mp-view hidden"></section>',
+    '<section id="mpChannelsView" class="mp-view hidden"></section>',
+    '<section id="mpManualView" class="mp-view hidden"><p class="mp-hint">Đăng một tập YouTube hoặc TikTok. Chiến dịch YouTube hàng loạt sử dụng nút + Chiến dịch ở phía trên.</p></section>',
+    '<dialog id="mpCampaignDialog" class="mp-campaign-dialog"><div class="mp-campaign-head"><div><span class="mp-eyebrow">ANPI · CHIẾN DỊCH SHORTS</span>',
+    '<h3 id="mpWizardTitle">Tạo chiến dịch mới</h3></div><button id="mpWizardClose" type="button" class="mp-secondary" aria-label="Đóng">×</button></div>',
+    '<div class="mp-wizard-steps" aria-label="Tiến trình chiến dịch"><span data-mp-step="1">1. Kênh &amp; phim</span>',
+    '<span data-mp-step="2">2. Muse &amp; JSON</span><span data-mp-step="3">3. Duyệt lịch</span></div>',
+    '<div id="mpWizardBody" class="mp-campaign-body"></div>',
+    '<div class="mp-campaign-footer"><button id="mpWizardBack" class="mp-secondary" type="button">← Quay lại</button>',
+    '<span id="mpWizardFooterHint" class="mp-hint">Chưa có bài nào được đăng</span></div></dialog>'
+  ].join("");
+  header.after(shell);
+  const original=root.querySelector(".mp-layout");
+  shell.querySelector("#mpOverviewView").append(original.querySelector(".mp-attention"));
+  shell.querySelector("#mpQueueView").append(original.querySelector(".mp-queue"));
+  shell.querySelector("#mpChannelsView").append(original.querySelector(".mp-account-grid").closest(".mp-card"));
+  shell.querySelector("#mpManualView").append(original.querySelector("#mpForm"));
+  shell.querySelector("#mpWizardBody").append(original.querySelector("#mpAiCard"));
+  original.remove();
+  shell.querySelectorAll("[data-mp-view]").forEach(button=>button.onclick=()=>setStudioView(button.dataset.mpView));
+  $("mpChannelFilter").onchange=()=>{studioSelectedDay="";studioWeekOffset=0;renderStudioDashboard();};
+  $("mpPrevWeek").onclick=()=>{studioWeekOffset=Math.max(-53,studioWeekOffset-1);renderStudioDashboard();};
+  $("mpNextWeek").onclick=()=>{studioWeekOffset=Math.min(53,studioWeekOffset+1);renderStudioDashboard();};
+  $("mpThisWeek").onclick=()=>{studioWeekOffset=0;studioSelectedDay=vnToday();renderStudioDashboard();};
+  $("mpCloseDay").onclick=()=>{studioSelectedDay="";renderStudioDashboard();};
+  $("mpOpenChannels").onclick=()=>setStudioView("channels");
+  $("mpOpenCampaign").onclick=()=>openStudioWizard().catch(e=>notify(e.message,true));
+  $("mpCampaignNew").onclick=()=>openStudioWizard().catch(e=>notify(e.message,true));
+  $("mpWizardClose").onclick=()=>$("mpCampaignDialog").close();
+  $("mpWizardBack").onclick=()=>setWizardStep(Math.max(1,wizardStep-1));
+  setStudioView("overview");
+}
+function setStudioView(next){
+  studioView=next;
+  for(const key of ["overview","campaigns","queue","channels","manual"])
+    $("mp"+key.charAt(0).toUpperCase()+key.slice(1)+"View").classList.toggle("hidden",key!==next);
+  document.querySelectorAll("#multiplatform [data-mp-view]").forEach(x=>x.classList.toggle("active",x.dataset.mpView===next));
+  if(next==="overview"||next==="campaigns")renderStudioDashboard();
+}
+function updateChannelChoices(){
+  const ch=$("mpChannelFilter"),wizard=$("mpWizardChannel");if(!ch||!wizard)return;
+  const old=ch.value,prevWizard=wizard.value;
+  const yt=accounts.filter(a=>a.provider==="youtube"&&a.active);
+  for(const select of [ch,wizard]){
+    select.replaceChildren(new Option("Chọn kênh YouTube",""));
+    for(const a of yt)select.append(new Option(a.display_name,a.id));
+  }
+  ch.value=yt.some(x=>x.id===old)?old:(yt[0]?.id||"");
+  wizard.value=yt.some(x=>x.id===prevWizard)?prevWizard:ch.value;
+  $("mpChannelState").textContent=ch.value?"Kênh được kết nối":"Chưa có kênh YouTube. Mở Kênh đã kết nối để thêm.";
+}
+function updateSeriesChoices(){
+  const select=$("mpWizardSeries");if(!select)return;
+  const old=select.value||$("mpSeries").value;
+  select.replaceChildren(new Option("Chọn phim trên Drive",""));
+  for(const item of series)select.append(new Option(item.title||item.name,item.id));
+  select.value=series.some(x=>x.id===old)?old:"";
+}
+function studioJobRow(job){
+  const account=accounts.find(x=>x.id===job.account_id);
+  const row=mk("article","","mp-studio-entry");
+  const time=mk("span",showTime(job.scheduled_at),"mp-entry-time");
+  const main=mk("div","","mp-entry-main");
+  main.append(mk("strong",(job.filename||"Không rõ tập")+" · "+(account?.display_name||"Kênh YouTube")),
+    mk("small",job.title||"Chưa có tiêu đề","mp-muted"));
+  if(job.error)main.append(mk("small","Lỗi: "+job.error,"mp-error"));
+  const status=mk("span",job.status==="published"?"Đã đăng":job.status==="queued"?"Chờ đăng":
+    job.status==="uploaded_private"?"Đã upload riêng tư":job.status==="failed"?"Lỗi":job.status==="needs_review"?"Cần đối soát":
+    job.status==="processing"?"Đang xử lý":job.status,"mp-status "+job.status);
+  const detail=mk("button","Chi tiết","mp-secondary");detail.type="button";detail.onclick=()=>openYoutubeJob(job);
+  row.append(time,main,status,detail);return row;
+}
+function studioJobList(root,items,empty){
+  root.replaceChildren();
+  if(!items.length)root.append(mk("div",empty,"mp-empty"));
+  for(const j of items)root.append(studioJobRow(j));
+}
+function renderStudioDashboard(){
+  if(!$("mpWeek"))return;
+  const selected=$("mpChannelFilter").value;
+  const scoped=jobs.filter(j=>j.provider==="youtube"&&(!selected||j.account_id===selected));
+  const now=Date.now(),today=vnToday();
+  $("mpStatToday").textContent=String(scoped.filter(j=>vnDay(j.scheduled_at)===today).length);
+  $("mpStatPublished").textContent=String(scoped.filter(j=>j.status==="published"||j.status==="uploaded_private").length);
+  $("mpStatQueued").textContent=String(scoped.filter(j=>j.status==="queued").length);
+  $("mpStatAttention").textContent=String(attentionJobs.filter(j=>!selected||j.account_id===selected).length);
+  const base=Date.parse(today+"T00:00:00+07:00")+studioWeekOffset*7*86400000;
+  const week=$("mpWeek");week.replaceChildren();
+  const first=vnDay(new Date(base).toISOString()),last=vnDay(new Date(base+6*86400000).toISOString());
+  $("mpWeekRange").textContent=first.slice(5).split("-").reverse().join("/")+" – "+last.slice(5).split("-").reverse().join("/");
+  for(let d=0;d<7;d++){
+    const timestamp=base+d*86400000,date=vnDay(new Date(timestamp).toISOString());
+    const count=scoped.filter(j=>vnDay(j.scheduled_at)===date).length;
+    const btn=mk("button","","mp-day"+(date===today?" today":"")+(date===studioSelectedDay?" selected":""));
+    btn.type="button";
+    btn.setAttribute("aria-label","Ngày "+date+" có "+count+" bài");
+    btn.append(mk("span",new Date(timestamp).toLocaleDateString("vi-VN",{timeZone:"Asia/Ho_Chi_Minh",
+      weekday:"short",day:"2-digit",month:"2-digit"})),mk("strong",String(count)),mk("small","bài đăng"));
+    btn.onclick=()=>{studioSelectedDay=date;renderStudioDashboard();};
+    week.append(btn);
+  }
+  $("mpPrevWeek").disabled=studioWeekOffset<=-53;
+  $("mpNextWeek").disabled=studioWeekOffset>=53;
+  $("mpDayDetail").classList.toggle("hidden",!studioSelectedDay);
+  if(studioSelectedDay){
+    $("mpDayTitle").textContent="Lịch đăng · "+studioSelectedDay.split("-").reverse().join("/");
+    studioJobList($("mpDayJobs"),scoped.filter(j=>vnDay(j.scheduled_at)===studioSelectedDay)
+      .sort((a,b)=>Date.parse(a.scheduled_at)-Date.parse(b.scheduled_at)),"Không có video trong ngày này.");
+  }
+  studioJobList($("mpUpcoming"),scoped.filter(j=>j.status==="queued"&&Date.parse(j.scheduled_at)>=now)
+    .sort((a,b)=>Date.parse(a.scheduled_at)-Date.parse(b.scheduled_at)).slice(0,12),"Không có video chờ đăng sắp tới.");
+  const groups=new Map();
+  for(const job of scoped){
+    const key=job.account_id+":"+job.folder_id;
+    if(!groups.has(key))groups.set(key,[]);
+    groups.get(key).push(job);
+  }
+  const list=$("mpCampaignList");list.replaceChildren();
+  if(!groups.size)list.append(mk("div","Chưa có lịch đăng YouTube cho kênh này. Nhấn + Chiến dịch Muse để tạo mới.","mp-empty"));
+  for(const group of [...groups.values()].sort((a,b)=>Date.parse(b[0].scheduled_at)-Date.parse(a[0].scheduled_at))){
+    const firstJob=group[0],movie=series.find(x=>x.id===firstJob.folder_id);
+    const row=mk("article","","mp-studio-entry");
+    const main=mk("div","","mp-entry-main");
+    main.append(mk("strong",movie?.title||movie?.name||"Thư mục Drive: "+firstJob.folder_id),
+      mk("small",group.filter(x=>x.status==="published"||x.status==="uploaded_private").length+
+        "/"+group.length+" bài đã hoàn tất · "+accounts.find(x=>x.id===firstJob.account_id)?.display_name,"mp-muted"));
+    const button=mk("button","Xem lịch","mp-secondary");
+    button.type="button";button.onclick=()=>{studioSelectedDay=vnDay(firstJob.scheduled_at);studioWeekOffset=
+      Math.floor((Date.parse(studioSelectedDay+"T00:00:00+07:00")-Date.parse(today+"T00:00:00+07:00"))/(7*86400000));
+      setStudioView("overview");};
+    row.append(main,button);list.append(row);
+  }
+}
+function setWizardStep(step){
+  wizardStep=step;
+  for(const index of [1,2,3])$("mpWizardStep"+index).classList.toggle("hidden",index!==step);
+  document.querySelectorAll("#mpCampaignDialog [data-mp-step]").forEach(x=>x.classList.toggle("active",Number(x.dataset.mpStep)===step));
+  $("mpWizardTitle").textContent=["","Chọn kênh và tập phim","Xuất lệnh Muse, nhập JSON","Duyệt lịch đăng YouTube"][step];
+  $("mpWizardBack").classList.toggle("hidden",step===1);
+  $("mpWizardFooterHint").textContent=step===1?"Chưa tạo bài đăng":step===2?"Muse chỉ tạo bản nháp, không đăng video":
+    "Bản nháp chỉ thành lịch sau khi bạn chấp thuận";
+}
+async function openStudioWizard(){
+  updateChannelChoices();updateSeriesChoices();
+  const selected=$("mpChannelFilter").value;
+  if(selected)$("mpWizardChannel").value=selected;
+  const current=$("mpWizardSeries").value;
+  if(!current&&series.length){$("mpWizardSeries").value=series[0].id;$("mpSeries").value=series[0].id;}
+  if($("mpWizardSeries").value&&(!episodes.length||$("mpSeries").value!==$("mpWizardSeries").value)){
+    $("mpSeries").value=$("mpWizardSeries").value;await loadEpisodes();
+  }
+  setWizardStep(1);
+  $("mpCampaignDialog").showModal();
 }
 
 export async function initMultiplatform(){
