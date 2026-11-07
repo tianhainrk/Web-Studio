@@ -292,6 +292,17 @@ export async function reelsRoute(req,res,path){
       const campaigns=await db("reel_campaigns?"+(pageId?"page_id=eq."+pageId+"&":"")+"select=id,name,page_id,folder_id,start_at,per_day,spacing_minutes,status,created_at&order=created_at.desc&limit=300");
       return json(res,200,{campaigns});
     }
+    if(path==="/jobs/attention"&&method==="GET"){
+      // Global, authenticated review list for all connected Fanpages. No OAuth secrets are returned.
+      // Include unfinished Meta uploads even when their scheduled date is in the past.
+      const select="id,campaign_id,page_id,episode,filename,caption,scheduled_at,status,meta_video_id,error,updated_at";
+      const active=await db("reel_jobs?status=in.(failed,uploading,processing,needs_review)&select="+select+"&order=updated_at.desc&limit=200");
+      const cutoff=new Date(Date.now()-5*60000).toISOString();
+      const overdue=await db("reel_jobs?status=eq.queued&scheduled_at=lt."+encodeURIComponent(cutoff)+"&select="+select+"&order=scheduled_at.asc&limit=200");
+      const byId=new Map();
+      for(const job of [...active,...overdue])byId.set(job.id,job);
+      return json(res,200,{jobs:[...byId.values()],checkedAt:new Date().toISOString(),partial:active.length===200||overdue.length===200});
+    }
     if(path==="/jobs"&&method==="GET"){
       const pageId=url.searchParams.get("pageId")||"";
       if(pageId&&!/^\d+$/.test(pageId))return fail(res,400,"Page ID không hợp lệ");
@@ -379,8 +390,14 @@ export async function reelsRoute(req,res,path){
       const status=info.status||{};
       const published=status.publishing_phase?.status==="complete"||status.video_status==="published";
       const failed=["error","upload_failed"].includes(status.video_status)||status.publishing_phase?.status==="error";
-      const next=published?"published":failed?"failed":"processing";
-      await db("reel_jobs?id=eq."+job.id,{method:"PATCH",body:{status:next,meta_status:status,updated_at:new Date().toISOString()}});
+      const next=job.status==="published"?"published":published?"published":failed?"failed":"processing";
+      // Do not overwrite a concurrently published/cancelled job with a stale Meta response.
+      const eligible="(uploading,processing,failed,needs_review)";
+      const updated=await db("reel_jobs?id=eq."+job.id+"&status=in."+eligible,{method:"PATCH",prefer:"return=representation",body:{status:next,meta_status:status,updated_at:new Date().toISOString()}});
+      if(!updated?.length){
+        const current=(await db("reel_jobs?id=eq."+job.id+"&select=status&limit=1"))?.[0];
+        return json(res,200,{ok:true,status:current?.status||job.status,unchanged:true});
+      }
       await audit("job_reconciled",{jobId:job.id,status:next},job.id);
       return json(res,200,{ok:true,status:next,meta:status});
     }

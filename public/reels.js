@@ -1,7 +1,8 @@
 const $=id=>document.getElementById(id);
 const zone="Asia/Ho_Chi_Minh";
 const VN_OFFSET=7*3600000;
-let initialized=false,pages=[],series=[],episodes=[],jobs=[],campaigns=[],activePage="",view="overview";
+let initialized=false,pages=[],series=[],episodes=[],jobs=[],attentionJobs=[],campaigns=[],activePage="",view="overview";
+let attentionCheckedAt="",attentionPartial=false;
 let analyticsEnabled=false;
 let pageDiagnostics=[];
 let selectedDay="",weekOffset=0;
@@ -367,18 +368,54 @@ function entryStatus(status){
   if(status==="queued")return "Chờ đăng";
   if(status==="failed")return "Lỗi";
   if(status==="cancelled")return "Đã hủy";
+   if(status==="needs_review")return "Cần đối soát";
   if(status==="uploading"||status==="processing")return "Đang xử lý";
   return status||"—";
 }
-function jobEntry(j){
-  const row=el("div","","rd-entry");
+function jobEntry(j,{global=false}={}){
+  const row=el("div","","rd-entry"+(global?" rd-attention-entry":""));
   row.append(el("div",vnDateText(j.scheduled_at)+" · "+vnTime(j.scheduled_at),"rd-entry-date"));
   const main=el("div","","rd-entry-main");
-  main.append(el("strong",epLabel(j.episode)+" · "+j.filename),el("small",(j.caption||"Chưa có caption").slice(0,130)));
+  const page=pages.find(p=>p.page_id===j.page_id);
+  const expired=j.status==="queued"&&Date.parse(j.scheduled_at)<Date.now()-5*60000;
+  main.append(el("strong",epLabel(j.episode)+" · "+j.filename));
+  if(global)main.append(el("small","Fanpage: "+(page?.name||"ID "+j.page_id),"rd-attention-page"));
+  const caption=el("small",j.caption||"Chưa có caption");
+  if(global)caption.classList.add("rd-attention-caption");
+  main.append(caption);
+  if(global&&j.error)main.append(el("small","Lỗi: "+j.error,"rd-attention-error"));
+  if(global&&j.meta_video_id)main.append(el("small","Meta Video ID: "+j.meta_video_id,"rd-attention-meta"));
   row.append(main);
-  row.append(el("span",entryStatus(j.status),"rd-entry-status "+j.status));
-  row.append(button("Chi tiết",()=>editJob(j.id)));
+  row.append(el("span",expired?"Quá giờ":entryStatus(j.status),"rd-entry-status "+(expired?"failed":j.status)));
+  row.append(button(global?"Chi tiết / Xử lý":"Chi tiết",()=>editJob(j.id)));
   return row;
+}
+function renderAttention(){
+  const root=$("rdAttentionItems");
+  if(!root)return;
+  root.replaceChildren();
+  $("rdAttentionCount").textContent=String(attentionJobs.length);
+  $("rdFailed").textContent=String(attentionJobs.length);
+  const updated=attentionCheckedAt?" · cập nhật "+vnLong(attentionCheckedAt):"";
+  $("rdAttentionInfo").textContent=attentionJobs.length?
+    "Có "+attentionJobs.length+" bài cần theo dõi trên toàn bộ Fanpage"+updated+
+      (attentionPartial?" · Danh sách đã chạm giới hạn 200 bài mỗi nhóm.":""):
+    "Không có bài lỗi, đang xử lý hoặc quá hạn"+updated+".";
+  if(!attentionJobs.length){root.append(el("div","Không có bài cần xử lý. Bài đã được Meta xác nhận đăng thành công không xuất hiện ở đây.","rd-empty"));return;}
+  for(const job of attentionJobs)root.append(jobEntry(job,{global:true}));
+}
+async function refreshAttention(){
+  try{
+    const result=await api("/jobs/attention");
+    attentionJobs=result.jobs||[];
+    attentionCheckedAt=result.checkedAt||"";
+    attentionPartial=!!result.partial;
+    renderAttention();
+  }catch(err){
+    $("rdAttentionInfo").textContent="Không thể tải bài cần kiểm tra: "+(err.message||String(err))+". Không coi số 0 là kết quả xác nhận.";
+    $("rdFailed").textContent="—";
+    throw err;
+  }
 }
 function listJobs(root,items,empty){
   root.replaceChildren();
@@ -391,7 +428,7 @@ function renderDashboard(){
   $("rdTodayCount").textContent=String(today.length);
   $("rdTodayPublished").textContent=String(today.filter(j=>j.status==="published").length);
   $("rdPending").textContent=String(all.filter(j=>j.status==="queued").length);
-  $("rdFailed").textContent=String(all.filter(j=>j.status==="failed").length);
+  $("rdFailed").textContent=String(attentionJobs.length);
   const page=pages.find(p=>p.page_id===activePage);
   const health=pageDiagnostics.find(x=>x.pageId===activePage);
   $("rdPageState").textContent=!page?"Chọn Fanpage để xem lịch":
@@ -468,41 +505,48 @@ async function refreshAll(){
   if(!analyticsEnabled&&view==="analytics")setView("overview");
   $("statusPanel").replaceChildren();
   for(const [key,value] of Object.entries(config))if(typeof value==="boolean")$("statusPanel").append(el("span",key+": "+(value?"✓":"chưa cấu hình"),"rd-summary-chip"));
-  await refreshPages();await Promise.all([refreshReports(),refreshDiagnostics(),refreshSeries().catch(e=>show("Không thể tải thư mục Drive: "+e.message,true))]);
+  await refreshPages();await Promise.all([refreshReports(),refreshAttention(),refreshDiagnostics(),refreshSeries().catch(e=>show("Không thể tải thư mục Drive: "+e.message,true))]);
 }
 function editJob(id){
-  const job=jobs.find(j=>j.id===id);if(!job)return;
+  const job=jobs.find(j=>j.id===id)||attentionJobs.find(j=>j.id===id);if(!job)return;
   editingJob=id;$("rdJobTitle").textContent=epLabel(job.episode)+" · Lịch đăng";
-  $("rdJobMeta").textContent=job.filename+" · "+pages.find(p=>p.page_id===job.page_id)?.name;
+  $("rdJobMeta").textContent=job.filename+" · "+(pages.find(p=>p.page_id===job.page_id)?.name||job.page_id)+" · "+vnLong(job.scheduled_at);
   $("rdJobTime").value=localInput(job.scheduled_at);$("rdJobCaption").value=job.caption||"";
   $("rdJobStatus").textContent=entryStatus(job.status)+(job.error?" · "+job.error:"")+(job.meta_video_id?" · Meta Video ID: "+job.meta_video_id:"");
   const editable=job.status==="queued";
   $("rdJobTime").disabled=!editable;$("rdJobCaption").disabled=!editable;
   $("rdJobSave").classList.toggle("hidden",!editable);$("rdJobCancel").classList.toggle("hidden",!editable);
   $("rdJobReconcile").classList.toggle("hidden",!job.meta_video_id);
-  $("rdJobRetry").classList.toggle("hidden",!(job.status==="failed"&&String(job.error||"").startsWith("Meta upload HTTP 400:")));
+  const safeRetry=job.status==="failed"&&/^Meta upload HTTP 400:/.test(String(job.error||""));
+  $("rdJobRetry").classList.toggle("hidden",!safeRetry);
+  $("rdJobHint").textContent=safeRetry?"Lỗi đã xảy ra trước bước phát hành. Có thể thử lại theo kiểm tra an toàn của máy chủ.":
+    job.meta_video_id&&job.status!=="published"?"Đã có Meta Video ID. Nhấn Đối soát Meta để kiểm tra trạng thái phát hành; không đăng lại khi chưa xác nhận.":
+    job.status==="published"?"Meta đã xác nhận phát hành. Không nên đăng lại để tránh trùng video.":
+    job.status==="queued"&&Date.parse(job.scheduled_at)<Date.now()-5*60000?"Bài đã quá giờ nhưng còn trong hàng đợi. Kiểm tra cấu hình worker và trạng thái Fanpage, hoặc sửa giờ đăng; không tạo thêm một bài giống hệt.":
+    job.status==="failed"?"Chưa đủ bằng chứng để thử đăng lại tự động. Cần kiểm tra nhật ký và kết quả Meta trước.":
+    "Hệ thống tự xử lý theo lịch; cập nhật trang để xem trạng thái mới.";
   openDialog("rdJobDialog");
 }
 async function saveJob(){
   const caption=$("rdJobCaption").value.trim();
   await api("/jobs/update",{id:editingJob,caption,scheduledAt:fromVNInput($("rdJobTime").value)});
-  closeDialog("rdJobDialog");await refreshReports();show("Đã cập nhật bài đăng.");
+  closeDialog("rdJobDialog");await Promise.all([refreshReports(),refreshAttention()]);show("Đã cập nhật bài đăng.");
 }
 async function cancelJob(){
   if(!confirm("Hủy lịch bài đăng này?"))return;
-  await api("/jobs/cancel",{id:editingJob});closeDialog("rdJobDialog");await refreshReports();
+  await api("/jobs/cancel",{id:editingJob});closeDialog("rdJobDialog");await Promise.all([refreshReports(),refreshAttention()]);
 }
 async function retryFailedJob(){
   if(!editingJob)throw Error("Chưa chọn bài đăng cần thử lại");
   if(!confirm("Thử đăng lại bài này sau khi sửa lỗi upload Meta? Hệ thống chỉ cho phép tự thử lại khi lần trước bị từ chối trước bước phát hành."))return;
   const result=await api("/jobs/retry",{id:editingJob});
   closeDialog("rdJobDialog");
-  await refreshReports();
+  await Promise.all([refreshReports(),refreshAttention()]);
   show(result.note||"Đã đưa bài đăng về hàng đợi.");
 }
 async function reconcileJob(){
   const result=await api("/jobs/reconcile",{id:editingJob});
-  closeDialog("rdJobDialog");await refreshReports();show("Đã đối soát Meta: "+result.status);
+  closeDialog("rdJobDialog");await Promise.all([refreshReports(),refreshAttention()]);show("Đã đối soát Meta: "+entryStatus(result.status));
 }
 async function loadAudit(){
   const res=await api("/audit"),root=$("audit");root.replaceChildren();
@@ -551,6 +595,7 @@ function initReelsStudio(){
   $("startDate").value=startTomorrow();
   $("rdPage").onchange=()=>handle(async()=>{activePage=$("rdPage").value;$("pageSelect").value=activePage;selectedDay="";weekOffset=0;await refreshReports();});
   $("reelsRefresh").onclick=()=>handle(refreshAll);
+  $("rdAttentionRefresh").onclick=()=>handle(async()=>{await Promise.all([refreshAttention(),refreshReports(),refreshDiagnostics()]);show("Đã cập nhật danh sách cần kiểm tra.");});
   $("rdConnect").onclick=()=>openDialog("rdConnectDialog");
   $("rdAnalyticsClose").onclick=()=>closeDialog("rdAnalyticsDialog");
   $("rdHealth").onclick=()=>{openDialog("rdConnectDialog");handle(refreshDiagnostics);};
