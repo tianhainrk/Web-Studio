@@ -73,7 +73,8 @@ export function normalizeYouTubeAiDraft(raw,slots,{now=Date.now()}={}){
       const [hour,minute]=suggestion.split(":").map(Number);
       if(hour>=7){
         const time=Date.parse(zoneDate(slot.scheduledAt)+"T"+suggestion+":00+07:00");
-        if(time>=now+60000&&time<=now+90*86400000&&time>=previous+15*60000){
+        const nextBase=i+1<slots.length?Date.parse(slots[i+1].scheduledAt):Infinity;
+        if(time>=now+60000&&time<=now+90*86400000&&time>=previous+15*60000&&time<=nextBase-15*60000){
           scheduled=time;accepted=true;
         }
       }
