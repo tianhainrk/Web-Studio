@@ -95,6 +95,7 @@ export async function connectDrive(clientId, options = {}) {
     const client = google.accounts.oauth2.initTokenClient({
       client_id: effectiveClientId,
       scope: "https://www.googleapis.com/auth/drive.file",
+      include_granted_scopes: false,
       error_callback: err => {
         if (!settled) {
           settled = true;
