@@ -337,9 +337,30 @@
             <input id="customClientId" type="text" placeholder="Google OAuth Client ID (ví dụ: xxx.apps.googleusercontent.com)" style="flex:1;min-width:240px">
             <button id="saveClientId" class="detail-secondary">Lưu Client ID</button>
           </div>
+          <div class="row" style="margin-bottom:10px">
+            <input id="customUserEmail" type="email" placeholder="Email Google mong muốn (ví dụ: thuyanai1510@gmail.com)" style="flex:1;min-width:240px">
+            <button id="saveUserEmail" class="detail-secondary">Lưu Email gợi ý</button>
+          </div>
+          <div class="row" style="margin-bottom:12px;font-size:13px;align-items:center;gap:8px">
+            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+              <input id="forceConsentCheck" type="checkbox" checked style="accent-color:#7547ce"> Buộc hiển thị màn hình cấp quyền (Force Consent Prompt)
+            </label>
+            <button id="clearDriveSession" class="detail-secondary" style="font-size:12px;padding:6px 10px">Xóa phiên cũ & Reset</button>
+          </div>
           <div class="row">
             <input id="manualAccessToken" type="password" placeholder="Hoặc dán trực tiếp Google Drive Access Token (ya29...)" style="flex:1;min-width:240px">
             <button id="applyAccessToken" class="detail-secondary">Liên kết bằng Token</button>
+          </div>
+
+          <div style="margin-top:14px;padding:12px;border-radius:10px;background:#181b2a;border:1px solid #2f334d;font-size:12px;line-height:1.6;color:#c0b9d8">
+            <b style="color:#d8bfff">📌 Hướng dẫn thiết lập chuẩn trên Google Cloud Console:</b>
+            <ol style="margin:6px 0 0;padding-left:18px">
+              <li><b>Authorized JavaScript origins:</b> <code>https://anpinime-dramavideo.vercel.app</code> (không có dấu <code>/</code> ở cuối).</li>
+              <li><b>Authorized redirect URIs:</b> Thêm cả <code>https://anpinime-dramavideo.vercel.app</code></li>
+              <li><b>OAuth consent screen:</b> <i>Publishing status</i> bắt buộc phải là <b>Testing</b> (nếu bấm Publish sang "In production" mà chưa Verify sẽ bị chặn với lỗi 403).</li>
+              <li><b>Test users:</b> Đã thêm <code>thuyanai1510@gmail.com</code> và nhấn nút <b>LƯU (SAVE)</b>.</li>
+              <li><b>Google Drive API:</b> Đã kích hoạt (Enabled) trong thư viện API của dự án.</li>
+            </ol>
           </div>
         </div>
 

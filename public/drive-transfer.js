@@ -80,7 +80,7 @@ async function drive(path, options = {}) {
   return body;
 }
 
-export async function connectDrive(clientId) {
+export async function connectDrive(clientId, options = {}) {
   const effectiveClientId = String(
     clientId || (typeof localStorage !== "undefined" ? localStorage.getItem("pws_google_client_id") : "") || ""
   ).trim();
@@ -91,23 +91,48 @@ export async function connectDrive(clientId) {
     throw Error("Thư viện Google OAuth chưa sẵn sàng. Hãy tải lại trang hoặc kiểm tra kết nối mạng.");
   }
   return new Promise((resolve, reject) => {
+    let settled = false;
     const client = google.accounts.oauth2.initTokenClient({
       client_id: effectiveClientId,
       scope: "https://www.googleapis.com/auth/drive.file",
+      error_callback: err => {
+        if (!settled) {
+          settled = true;
+          const msg = err.message || err.type || "Cửa sổ đăng nhập Google bị đóng hoặc popup bị chặn.";
+          reject(Error(msg));
+        }
+      },
       callback: async result => {
+        if (settled) return;
         if (result.error || !result.access_token) {
-          return reject(Error(result.error_description || result.error || "Google OAuth không thành công"));
+          settled = true;
+          const detail = result.error_description || result.error || "Google OAuth không thành công";
+          return reject(Error(detail));
         }
         persistToken(result.access_token);
         try {
           await ensureRoot();
+          settled = true;
           resolve(rootFolder);
         } catch (e) {
+          settled = true;
           reject(e);
         }
       }
     });
-    client.requestAccessToken();
+
+    const reqConfig = {};
+    if (typeof options.prompt === "string") {
+      reqConfig.prompt = options.prompt;
+    } else if (options.forceConsent !== false) {
+      reqConfig.prompt = "consent";
+    }
+    const hint = options.hint || (typeof localStorage !== "undefined" ? localStorage.getItem("pws_google_user_email") : "") || "";
+    if (hint && hint.trim()) {
+      reqConfig.hint = hint.trim();
+    }
+
+    client.requestAccessToken(reqConfig);
   });
 }
 

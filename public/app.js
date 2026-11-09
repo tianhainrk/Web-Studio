@@ -91,7 +91,10 @@ function switchTab(tabName) {
 
 async function handleConnectDrive() {
   try {
-    await connectDrive(effectiveClientId());
+    const hint = ($("customUserEmail")?.value || "").trim();
+    const forceConsent = $("forceConsentCheck") ? $("forceConsentCheck").checked : true;
+    status("Đang mở cửa sổ đăng nhập Google Drive...");
+    await connectDrive(effectiveClientId(), { hint, forceConsent });
     updateDriveConnectionUI();
     status("Đã liên kết Google Drive và khởi tạo thư mục PineDrama-Library thành công!");
     if (!$("manager").classList.contains("hidden")) {
@@ -170,6 +173,9 @@ async function auth() {
     $("customClientId").value = googleClientId;
   } else if ($("customClientId")) {
     $("customClientId").value = localStorage.getItem("pws_google_client_id") || "";
+  }
+  if ($("customUserEmail")) {
+    $("customUserEmail").value = localStorage.getItem("pws_google_user_email") || "thuyanai1510@gmail.com";
   }
   $("loginView").classList.toggle("hidden", me.authenticated);
   $("appView").classList.toggle("hidden", !me.authenticated);
@@ -1420,6 +1426,25 @@ $("saveClientId").onclick = () => {
     status("Đã xóa Client ID tùy chỉnh.");
   }
 };
+if ($("saveUserEmail")) {
+  $("saveUserEmail").onclick = () => {
+    const val = ($("customUserEmail").value || "").trim();
+    if (val) {
+      localStorage.setItem("pws_google_user_email", val);
+      status("Đã lưu email gợi ý Google: " + val);
+    } else {
+      localStorage.removeItem("pws_google_user_email");
+      status("Đã xóa email gợi ý Google.");
+    }
+  };
+}
+if ($("clearDriveSession")) {
+  $("clearDriveSession").onclick = () => {
+    disconnectDrive();
+    updateDriveConnectionUI();
+    status("Đã xóa phiên và token cũ. Hãy nhấn 'Kết nối Google Drive' để cấp quyền lại.");
+  };
+}
 $("applyAccessToken").onclick = async () => {
   const raw = ($("manualAccessToken").value || "").trim();
   if (!raw) return;
