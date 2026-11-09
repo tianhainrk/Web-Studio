@@ -374,6 +374,34 @@ export async function reelsRoute(req,res,path){
       return json(res,200,{ok:true,queued:true,dispatched,
         note:dispatched?"Đã yêu cầu GitHub Actions xử lý bài":"Đã đưa về hàng đợi. Hãy chạy workflow GitHub thủ công hoặc cấu hình bộ kích hoạt theo lịch."});
     }
+    if(path==="/jobs/publish-now"&&method==="POST"){
+      const request=await body(req);
+      const id=String(request.id||"");
+      if(!/^[0-9a-f-]{36}$/i.test(id))return fail(res,400,"ID bài đăng không hợp lệ");
+      const original=(await db("reel_jobs?id=eq."+id+"&select=id,status,scheduled_at,episode,page_id&limit=1"))?.[0];
+      if(!original)return fail(res,404,"Không tìm thấy bài đăng");
+      if(original.status==="published")return fail(res,409,"Bài đăng đã hoàn tất phát hành trên Meta");
+      if(original.status==="uploading"||original.status==="processing")
+        return fail(res,409,"Bài đăng đang được xử lý hoặc chờ Meta hoàn tất");
+      await db("reel_jobs?id=eq."+id+"&status=eq.queued",{method:"PATCH",prefer:"return=minimal",
+        body:{scheduled_at:new Date().toISOString(),updated_at:new Date().toISOString()}});
+      let dispatched=false;
+      try{dispatched=(await dispatchReelsWorker()).dispatched;}
+      catch(e){console.warn("Reels worker dispatch unavailable",String(e.message).slice(0,120));}
+      await audit("reel_publish_now_requested",{jobId:id,episode:original.episode,pageId:original.page_id,dispatched},id);
+      return json(res,200,{ok:true,dispatched,
+        note:dispatched?"Đã gửi yêu cầu đăng ngay tới GitHub Actions worker":
+          "Đã đặt bài về thời điểm hiện tại. Hãy bấm 'Run workflow' trên GitHub Actions để chạy worker."});
+    }
+    if(path==="/worker/dispatch"&&method==="POST"){
+      let dispatched=false;
+      try{dispatched=(await dispatchReelsWorker()).dispatched;}
+      catch(e){console.warn("Reels worker dispatch unavailable",String(e.message).slice(0,120));}
+      await audit("reels_worker_dispatch_requested",{dispatched},null);
+      return json(res,200,{ok:true,dispatched,
+        note:dispatched?"Đã yêu cầu GitHub Actions chạy worker xử lý hàng đợi":
+          "Chưa cấu hình GITHUB_REELS_WORKFLOW_TOKEN trên Vercel. Hãy bấm 'Run workflow' trên GitHub Actions."});
+    }
     if(path==="/jobs/cancel"&&method==="POST"){
       const b=await body(req);
       if(!/^[0-9a-f-]{36}$/i.test(String(b.id||"")))return fail(res,400,"Job ID không hợp lệ");

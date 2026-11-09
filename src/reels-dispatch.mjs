@@ -4,7 +4,7 @@
 export async function dispatchReelsWorker(){
   const token=process.env.GITHUB_REELS_WORKFLOW_TOKEN||"";
   if(!token)return {dispatched:false,reason:"missing_token"};
-  const repo=process.env.GITHUB_REELS_REPOSITORY||"tianhainrk/PineDrama-Web-Studio";
+  const repo=process.env.GITHUB_REELS_REPOSITORY||"tianhainrk/Web-Studio";
   if(!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo))throw Error("GITHUB_REELS_REPOSITORY không hợp lệ");
   const url="https://api.github.com/repos/"+repo+"/actions/workflows/reels-worker.yml/dispatches";
   const response=await fetch(url,{method:"POST",headers:{

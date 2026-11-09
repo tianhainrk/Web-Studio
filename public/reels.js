@@ -387,6 +387,9 @@ function jobEntry(j,{global=false}={}){
   if(global&&j.meta_video_id)main.append(el("small","Meta Video ID: "+j.meta_video_id,"rd-attention-meta"));
   row.append(main);
   row.append(el("span",expired?"Quá giờ":entryStatus(j.status),"rd-entry-status "+(expired?"failed":j.status)));
+  if(expired){
+    row.append(button("Đăng lại thủ công",()=>publishJobNow(j.id),"rd-primary"));
+  }
   row.append(button(global?"Chi tiết / Xử lý":"Chi tiết",()=>editJob(j.id)));
   return row;
 }
@@ -518,8 +521,11 @@ function editJob(id){
   $("rdJobSave").classList.toggle("hidden",!editable);$("rdJobCancel").classList.toggle("hidden",!editable);
   $("rdJobReconcile").classList.toggle("hidden",!job.meta_video_id);
   const safeRetry=job.status==="failed"&&/^Meta upload HTTP 400:/.test(String(job.error||""));
-  $("rdJobRetry").classList.toggle("hidden",!safeRetry);
+  const canPublishNow=job.status==="queued";
+  $("rdJobRetry").textContent=canPublishNow?"Đăng lại thủ công":safeRetry?"Thử đăng lại":"Đăng lại";
+  $("rdJobRetry").classList.toggle("hidden",!safeRetry&&!canPublishNow);
   $("rdJobHint").textContent=safeRetry?"Lỗi đã xảy ra trước bước phát hành. Có thể thử lại theo kiểm tra an toàn của máy chủ.":
+    canPublishNow&&Date.parse(job.scheduled_at)<Date.now()-5*60000?"Bài đã quá giờ. Bạn có thể nhấn 'Đăng lại thủ công' để kích hoạt worker đăng ngay.":
     job.meta_video_id&&job.status!=="published"?"Đã có Meta Video ID. Nhấn Đối soát Meta để kiểm tra trạng thái phát hành; không đăng lại khi chưa xác nhận.":
     job.status==="published"?"Meta đã xác nhận phát hành. Không nên đăng lại để tránh trùng video.":
     job.status==="queued"&&Date.parse(job.scheduled_at)<Date.now()-5*60000?"Bài đã quá giờ nhưng còn trong hàng đợi. Kiểm tra cấu hình worker và trạng thái Fanpage, hoặc sửa giờ đăng; không tạo thêm một bài giống hệt.":
@@ -536,8 +542,36 @@ async function cancelJob(){
   if(!confirm("Hủy lịch bài đăng này?"))return;
   await api("/jobs/cancel",{id:editingJob});closeDialog("rdJobDialog");await Promise.all([refreshReports(),refreshAttention()]);
 }
+async function publishJobNow(id){
+  if(!id)return;
+  if(!confirm("Đăng lại bài này ngay bây giờ? Hệ thống sẽ đặt lịch về hiện tại và gửi yêu cầu tới worker."))return;
+  const result=await api("/jobs/publish-now",{id});
+  if($("rdJobDialog")?.open)closeDialog("rdJobDialog");
+  await Promise.all([refreshReports(),refreshAttention()]);
+  if(!result?.dispatched){
+    const ghToken=localStorage.getItem("pws_github_token")||"";
+    if(ghToken){
+      try{
+        const r=await fetch("https://api.github.com/repos/tianhainrk/Web-Studio/actions/workflows/reels-worker.yml/dispatches",{
+          method:"POST",
+          headers:{"Authorization":"Bearer "+ghToken,"Accept":"application/vnd.github+json","Content-Type":"application/json"},
+          body:JSON.stringify({ref:"main"})
+        });
+        if(r.status===204){
+          show("Đã kích hoạt worker qua GitHub Token cá nhân! Đang đăng bài...");
+          return;
+        }
+      }catch(e){console.warn("browser github dispatch",e.message);}
+    }
+  }
+  show(result?.note||"Đã yêu cầu đăng bài.");
+}
 async function retryFailedJob(){
   if(!editingJob)throw Error("Chưa chọn bài đăng cần thử lại");
+  const job=jobs.find(j=>j.id===editingJob)||attentionJobs.find(j=>j.id===editingJob);
+  if(job?.status==="queued"){
+    return publishJobNow(editingJob);
+  }
   if(!confirm("Thử đăng lại bài này sau khi sửa lỗi upload Meta? Hệ thống chỉ cho phép tự thử lại khi lần trước bị từ chối trước bước phát hành."))return;
   const result=await api("/jobs/retry",{id:editingJob});
   closeDialog("rdJobDialog");
@@ -604,6 +638,30 @@ function initReelsStudio(){
   $("rdPage").onchange=()=>handle(async()=>{activePage=$("rdPage").value;$("pageSelect").value=activePage;selectedDay="";weekOffset=0;await refreshReports();});
   $("reelsRefresh").onclick=()=>handle(refreshAll);
   $("rdAttentionRefresh").onclick=()=>handle(async()=>{await Promise.all([refreshAttention(),refreshReports(),refreshDiagnostics()]);show("Đã cập nhật danh sách cần kiểm tra.");});
+  if($("rdAttentionDispatch")){
+    $("rdAttentionDispatch").onclick=()=>handle(async()=>{
+      const result=await api("/worker/dispatch",{});
+      if(!result?.dispatched){
+        const ghToken=localStorage.getItem("pws_github_token")||"";
+        if(ghToken){
+          try{
+            const r=await fetch("https://api.github.com/repos/tianhainrk/Web-Studio/actions/workflows/reels-worker.yml/dispatches",{
+              method:"POST",
+              headers:{"Authorization":"Bearer "+ghToken,"Accept":"application/vnd.github+json","Content-Type":"application/json"},
+              body:JSON.stringify({ref:"main"})
+            });
+            if(r.status===204){
+              show("Đã kích hoạt worker qua GitHub Token cá nhân!");
+              await Promise.all([refreshAttention(),refreshReports()]);
+              return;
+            }
+          }catch(e){console.warn("browser github dispatch",e.message);}
+        }
+      }
+      show(result?.note||"Đã yêu cầu chạy worker.");
+      await Promise.all([refreshAttention(),refreshReports()]);
+    });
+  }
   $("rdConnect").onclick=()=>openDialog("rdConnectDialog");
   $("rdAnalyticsClose").onclick=()=>closeDialog("rdAnalyticsDialog");
   $("rdHealth").onclick=()=>{openDialog("rdConnectDialog");handle(refreshDiagnostics);};

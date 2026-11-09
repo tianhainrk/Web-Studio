@@ -65,7 +65,7 @@ function insightsTrend(b,pageId,period,metric){
 async function dispatchAnalytics(){
   const token=process.env.GITHUB_REELS_WORKFLOW_TOKEN||"";
   if(!token)return {dispatched:false,reason:"Vercel thiếu GITHUB_REELS_WORKFLOW_TOKEN"};
-  const repo=process.env.GITHUB_REELS_REPOSITORY||"tianhainrk/PineDrama-Web-Studio";
+  const repo=process.env.GITHUB_REELS_REPOSITORY||"tianhainrk/Web-Studio";
   if(!/^[\w.-]+\/[\w.-]+$/.test(repo))
     return {dispatched:false,reason:"GITHUB_REELS_REPOSITORY không hợp lệ"};
   const res=await fetch("https://api.github.com/repos/"+repo+"/actions/workflows/reels-analytics.yml/dispatches",{
