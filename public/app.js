@@ -175,7 +175,7 @@ async function auth() {
     $("customClientId").value = localStorage.getItem("pws_google_client_id") || "";
   }
   if ($("customUserEmail")) {
-    $("customUserEmail").value = localStorage.getItem("pws_google_user_email") || "thuyanai1510@gmail.com";
+    $("customUserEmail").value = localStorage.getItem("pws_google_user_email") || "";
   }
   $("loginView").classList.toggle("hidden", me.authenticated);
   $("appView").classList.toggle("hidden", !me.authenticated);
