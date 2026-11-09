@@ -43,6 +43,8 @@ async function reconcile(){
       const failed=["error","upload_failed"].includes(status.video_status)||status.publishing_phase?.status==="error";
       await patch(job.id,{status:published?"published":failed?"failed":"processing",meta_status:status});
       if(published||failed)await audit("reel_status",{jobId:job.id,result:published?"published":"failed"},job.id);
+      if(published)console.log("reel published by Meta",job.id,"page",job.page_id,"video",job.meta_video_id);
+      if(failed)console.log("reel publish failed by Meta",job.id,"page",job.page_id,"video",job.meta_video_id);
     }catch(err){console.error("reconcile",job.id,err.message);}
   }
 }
@@ -70,6 +72,25 @@ export async function main(){
       console.error("reel job failed",job.id,String(err.message||err).slice(0,220));
       await patch(job.id,{status:"failed",error:String(err.message||err).slice(0,400)});
       await audit("reel_failed",{jobId:job.id,error:String(err.message||err).slice(0,300)},job.id);
+    }
+  }
+  if(processed===0){
+    try{
+      const nowIso=new Date().toISOString();
+      const overdue=await db("reel_jobs?status=eq.queued&scheduled_at=lte."+encodeURIComponent(nowIso)+"&select=id,page_id,campaign_id,scheduled_at&order=scheduled_at.asc&limit=10");
+      if(overdue?.length){
+        console.log("diagnostics: found",overdue.length,"overdue queued jobs that were not claimed");
+        for(const item of overdue){
+          const p=await db("reel_pages?page_id=eq."+item.page_id+"&select=active");
+          const c=await db("reel_campaigns?id=eq."+item.campaign_id+"&select=status");
+          console.log("diagnostics: job",item.id,"page",item.page_id,"page_active",p?.[0]?.active,"campaign_status",c?.[0]?.status,"scheduled",item.scheduled_at);
+        }
+      }else{
+        const next=await db("reel_jobs?status=eq.queued&scheduled_at=gt."+encodeURIComponent(nowIso)+"&select=scheduled_at&order=scheduled_at.asc&limit=1");
+        console.log("diagnostics: queue clean, 0 overdue queued jobs. Next scheduled job at",next?.[0]?.scheduled_at||"none");
+      }
+    }catch(err){
+      console.log("diagnostics check error:",err.message);
     }
   }
   console.log("reels worker jobs",processed,"failed",failed,"elapsed_ms",Date.now()-started);
