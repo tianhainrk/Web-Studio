@@ -592,6 +592,14 @@ function showAnalyticsReelDetail(data){
 }
 function initReelsStudio(){
   if(initialized)return;initialized=true;
+  if(typeof window!=="undefined"&&typeof window.setInterval==="function"){
+    window.setInterval(()=>{
+      if(document.visibilityState==="visible"){
+        refreshAttention().catch(()=>{});
+        refreshReports().catch(()=>{});
+      }
+    },60000);
+  }
   $("startDate").value=startTomorrow();
   $("rdPage").onchange=()=>handle(async()=>{activePage=$("rdPage").value;$("pageSelect").value=activePage;selectedDay="";weekOffset=0;await refreshReports();});
   $("reelsRefresh").onclick=()=>handle(refreshAll);
